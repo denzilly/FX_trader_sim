@@ -1,27 +1,53 @@
 <script lang="ts">
-  // Electronic Pricing module - configure streaming prices
-  let skew = 0;
+  import { ePrices, ePricingConfig } from '../stores/game';
+  import { formatPrice } from '../utils/format';
+
+  function widen() {
+    ePricingConfig.update(c => ({ ...c, spreadPips: c.spreadPips + 1 }));
+  }
+
+  function tighten() {
+    ePricingConfig.update(c => ({ ...c, spreadPips: Math.max(1, c.spreadPips - 1) }));
+  }
+
+  function skewLeft() {
+    ePricingConfig.update(c => ({ ...c, skewPips: c.skewPips - 1 }));
+  }
+
+  function skewRight() {
+    ePricingConfig.update(c => ({ ...c, skewPips: c.skewPips + 1 }));
+  }
+
+  function skewToMidBid() {
+    // Skew so bid equals mid (extreme left skew)
+    ePricingConfig.update(c => ({ ...c, skewPips: Math.floor(c.spreadPips / 2) }));
+  }
+
+  function skewToMidAsk() {
+    // Skew so ask equals mid (extreme right skew)
+    ePricingConfig.update(c => ({ ...c, skewPips: -Math.floor(c.spreadPips / 2) }));
+  }
 </script>
 
 <div class="module e-pricing">
   <div class="module-header">e-Pricing</div>
   <div class="module-content">
-    <button class="control-btn">WIDEN</button>
+    <button class="control-btn" on:click={widen}>WIDEN</button>
 
     <div class="price-display">
-      <span class="bid-price">1.0848</span>
-      <span class="spread">1.2</span>
-      <span class="ask-price">1.0860</span>
+      <span class="bid-price">{formatPrice($ePrices.bid)}</span>
+      <span class="spread">{($ePricingConfig.spreadPips / 10).toFixed(1)}</span>
+      <span class="ask-price">{formatPrice($ePrices.ask)}</span>
     </div>
 
-    <button class="control-btn">TIGHTEN</button>
+    <button class="control-btn" on:click={tighten}>TIGHTEN</button>
 
     <div class="skew-controls">
-      <button class="skew-btn">MID</button>
-      <button class="skew-btn">←</button>
-      <span class="skew-value">{skew}</span>
-      <button class="skew-btn">→</button>
-      <button class="skew-btn">MID</button>
+      <button class="skew-btn" on:click={skewToMidBid}>MID</button>
+      <button class="skew-btn" on:click={skewLeft}>←</button>
+      <span class="skew-value">{$ePricingConfig.skewPips}</span>
+      <button class="skew-btn" on:click={skewRight}>→</button>
+      <button class="skew-btn" on:click={skewToMidAsk}>MID</button>
     </div>
 
     <div class="volume-ladder">

@@ -1,10 +1,20 @@
 <script lang="ts">
+  import { onMount, onDestroy } from 'svelte';
+  import { startGame, stopGame } from './lib/simulation/gameLoop';
   import Hedging from './lib/components/Hedging.svelte';
   import EPricing from './lib/components/EPricing.svelte';
   import News from './lib/components/News.svelte';
   import TradeBlotter from './lib/components/TradeBlotter.svelte';
   import Chat from './lib/components/Chat.svelte';
   import RiskPnl from './lib/components/RiskPnl.svelte';
+
+  onMount(() => {
+    startGame();
+  });
+
+  onDestroy(() => {
+    stopGame();
+  });
 </script>
 
 <main class="cockpit">

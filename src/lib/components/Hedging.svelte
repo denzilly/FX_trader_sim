@@ -1,14 +1,15 @@
 <script lang="ts">
-  // Hedging module - market trading interface
+  import { marketPrice } from '../stores/game';
+  import { formatPrice, formatSpreadPips } from '../utils/format';
 </script>
 
 <div class="module hedging">
   <div class="module-header">Hedging</div>
   <div class="module-content">
     <div class="price-display">
-      <button class="bid-price">1.0850</button>
-      <span class="spread">0.8</span>
-      <button class="ask-price">1.0858</button>
+      <button class="bid-price">{formatPrice($marketPrice.bid)}</button>
+      <span class="spread">{formatSpreadPips($marketPrice.spread)}</span>
+      <button class="ask-price">{formatPrice($marketPrice.ask)}</button>
     </div>
     <div class="volume-ladder">
       <span>1M</span>
