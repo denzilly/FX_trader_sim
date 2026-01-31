@@ -2,13 +2,13 @@
   import { onMount, onDestroy } from 'svelte';
   import { startGame, stopGame } from './lib/simulation/gameLoop';
   import { position, pnl } from './lib/stores/game';
-  import { formatMillions, formatCurrency } from './lib/utils/format';
+  import { formatCurrency } from './lib/utils/format';
   import Hedging from './lib/components/Hedging.svelte';
   import EPricing from './lib/components/EPricing.svelte';
   import Chart from './lib/components/Chart.svelte';
   import TradeBlotter from './lib/components/TradeBlotter.svelte';
+  import RfqBlotter from './lib/components/RfqBlotter.svelte';
   import Chat from './lib/components/Chat.svelte';
-  import News from './lib/components/News.svelte';
 
   onMount(() => {
     startGame();
@@ -34,7 +34,7 @@
           {#if positionAmount === 0}
             FLAT
           {:else}
-            {positionSide} {formatMillions(positionAmount)} EUR
+            {positionSide} {positionAmount}M EUR
           {/if}
         </span>
       </div>
@@ -61,11 +61,11 @@
     <div class="grid-cell blotter-cell">
       <TradeBlotter />
     </div>
+    <div class="grid-cell rfq-blotter-cell">
+      <RfqBlotter />
+    </div>
     <div class="grid-cell chat-cell">
       <Chat />
-    </div>
-    <div class="grid-cell news-cell">
-      <News />
     </div>
   </div>
 </main>
@@ -206,12 +206,12 @@
     grid-row: 2;
   }
 
-  .chat-cell {
+  .rfq-blotter-cell {
     grid-column: 2;
     grid-row: 2;
   }
 
-  .news-cell {
+  .chat-cell {
     grid-column: 3;
     grid-row: 2;
   }

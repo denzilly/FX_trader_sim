@@ -45,3 +45,8 @@ If you have state that's important to retain within a component, consider creati
 import { writable } from 'svelte/store'
 export default writable(0)
 ```
+
+
+
+# notes on changes that I want to implement
+- graph window should be a bit longer before it starts scrolling (4x what it is now)

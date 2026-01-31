@@ -1,45 +1,44 @@
 <script lang="ts">
-  // Trade Blotter - active requests and executed trades
-  const trades = [
-    { id: 1, status: 'pending', client: 'MacroHard Corp', side: 'BUY', size: '10M', price: '1.0855', type: 'electronic' },
-    { id: 2, status: 'done', client: "Bill's Bakery", side: 'SELL', size: '5M', price: '1.0848', type: 'voice' },
-    { id: 3, status: 'done', client: 'ABC Capital', side: 'BUY', size: '25M', price: '1.0852', type: 'electronic' },
-  ];
+  import { trades } from '../stores/game';
+  import { formatPrice } from '../utils/format';
+
+  function formatTime(timestamp: number): string {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
 </script>
 
 <div class="module blotter">
   <div class="module-header">Trade Blotter</div>
   <div class="module-content">
-    <table>
-      <thead>
-        <tr>
-          <th></th>
-          <th>Client</th>
-          <th>Side</th>
-          <th>Size</th>
-          <th>Price</th>
-          <th>Type</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each trades as trade}
-          <tr class={trade.status}>
-            <td>
-              {#if trade.status === 'pending'}
-                <button class="reject-btn">✕</button>
-              {:else}
-                <span class="done-icon">✓</span>
-              {/if}
-            </td>
-            <td>{trade.client}</td>
-            <td class={trade.side.toLowerCase()}>{trade.side}</td>
-            <td>{trade.size}</td>
-            <td class="price">{trade.price}</td>
-            <td class="type">{trade.type}</td>
+    {#if $trades.length === 0}
+      <div class="empty-state">No trades yet</div>
+    {:else}
+      <table>
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Client</th>
+            <th>Side</th>
+            <th>Size</th>
+            <th>Price</th>
+            <th>Type</th>
           </tr>
-        {/each}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {#each [...$trades].reverse() as trade}
+            <tr>
+              <td class="time">{formatTime(trade.timestamp)}</td>
+              <td>{trade.clientName}</td>
+              <td class={trade.side}>{trade.side.toUpperCase()}</td>
+              <td>{trade.size}M</td>
+              <td class="price">{formatPrice(trade.price)}</td>
+              <td class="type">{trade.type}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    {/if}
   </div>
 </div>
 
@@ -88,35 +87,27 @@
     border-bottom: 1px solid #2a2a4a;
   }
 
-  tr.pending {
-    background: #2a2a3a;
+  .empty-state {
+    padding: 20px;
+    text-align: center;
+    color: #666;
+    font-style: italic;
   }
 
-  .reject-btn {
-    background: #4a2d3e;
-    border: none;
-    color: #f87171;
-    width: 20px;
-    height: 20px;
-    border-radius: 2px;
-    cursor: pointer;
+  .time {
+    font-family: 'Consolas', monospace;
+    color: #888;
     font-size: 10px;
-  }
-
-  .reject-btn:hover {
-    background: #5a3d4e;
-  }
-
-  .done-icon {
-    color: #4ade80;
   }
 
   .buy {
     color: #4ade80;
+    font-weight: 600;
   }
 
   .sell {
     color: #f87171;
+    font-weight: 600;
   }
 
   .price {

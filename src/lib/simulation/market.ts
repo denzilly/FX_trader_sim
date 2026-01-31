@@ -21,7 +21,7 @@ export interface MarketConfig {
 
 const DEFAULT_CONFIG: MarketConfig = {
   initialMid: 1.0850,
-  volatility: 0.00015,  // Max ±3 pips per tick for more visible movement
+  volatility: 0.00005,  // Max ±1.5 pips per tick for more visible movement
   drift: .0000,
   baseSpread: 0.00008, // 0.8 pips market spread (1 pip = 0.0001)
 };

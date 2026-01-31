@@ -36,3 +36,29 @@ export function formatCurrency(amount: number): string {
   const absAmount = Math.abs(amount);
   return `${sign}$${absAmount.toLocaleString()}`;
 }
+
+/**
+ * Extract big figure from price (first 2 decimal places)
+ * e.g., 1.08567 -> "1.08"
+ */
+export function getBigFigure(price: number): string {
+  return price.toFixed(2);
+}
+
+/**
+ * Extract pips from price (4th and 5th decimal as integer)
+ * e.g., 1.08567 -> "67"
+ */
+export function getPips(price: number): string {
+  const pips = Math.floor((price * 10000) % 100);
+  return pips.toString().padStart(2, '0');
+}
+
+/**
+ * Extract fractional pip (5th decimal)
+ * e.g., 1.08567 -> "7"
+ */
+export function getFractionalPip(price: number): string {
+  const frac = Math.floor((price * 100000) % 10);
+  return frac.toString();
+}

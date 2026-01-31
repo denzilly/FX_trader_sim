@@ -11,7 +11,7 @@
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D | null = null;
 
-  const MAX_POINTS = 200;
+  const MAX_POINTS = 600; // 60 seconds at 100ms ticks
 
   // Subscribe to market price updates
   $: {
@@ -52,7 +52,7 @@
     ctx.fillStyle = '#1a1a2e';
     ctx.fillRect(0, 0, width, height);
 
-    // Calculate price range
+    // Calculate price range (auto-scaling with padding)
     const prices = priceHistory.map(p => p.mid);
     const minPrice = Math.min(...prices);
     const maxPrice = Math.max(...prices);
@@ -101,16 +101,33 @@
 
     ctx.stroke();
 
-    // Draw current price marker
+    // Draw current price marker and label
     if (priceHistory.length > 0) {
       const lastPoint = priceHistory[priceHistory.length - 1];
       const lastX = padding.left + ((priceHistory.length - 1) / (MAX_POINTS - 1)) * chartWidth;
       const lastY = padding.top + (1 - (lastPoint.mid - paddedMin) / paddedRange) * chartHeight;
 
+      // Draw dot on the line
       ctx.fillStyle = '#60a5fa';
       ctx.beginPath();
       ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
       ctx.fill();
+
+      // Draw current price label on y-axis
+      const labelWidth = 52;
+      const labelHeight = 16;
+      const labelX = width - padding.right + 2;
+      const labelY = lastY - labelHeight / 2;
+
+      // Label background
+      ctx.fillStyle = '#60a5fa';
+      ctx.fillRect(labelX, labelY, labelWidth, labelHeight);
+
+      // Label text
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 10px Consolas, monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(lastPoint.mid.toFixed(4), labelX + 3, lastY + 4);
     }
   }
 </script>

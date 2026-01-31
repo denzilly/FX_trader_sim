@@ -22,7 +22,8 @@ export interface Trade {
   price: number;
   timestamp: number;
   clientId?: string;
-  type: 'hedge' | 'client';
+  clientName: string;
+  type: 'hedge' | 'electronic' | 'voice';
 }
 
 export function createPositionTracker() {

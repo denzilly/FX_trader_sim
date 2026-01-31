@@ -1,38 +1,71 @@
 <script lang="ts">
-  // Chat module - voice pricing via sales
-  let inputValue = '';
+  import { afterUpdate } from 'svelte';
+  import { chatMessages, activeVoiceRfqs } from '../stores/game';
+  import { handlePlayerChatInput } from '../simulation/gameLoop';
 
-  const messages = [
-    { from: 'sales', name: 'John', text: 'I need a bid in 10 for MacroHard Software' },
-    { from: 'trader', name: 'You', text: '1.0850' },
-    { from: 'sales', name: 'John', text: 'Done, you sell 10 at 1.0850' },
-  ];
+  let inputValue = '';
+  let messagesContainer: HTMLDivElement;
+  let errorMessage = '';
+
+  // Auto-scroll to bottom when new messages arrive
+  afterUpdate(() => {
+    if (messagesContainer) {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+  });
+
+  function formatTime(timestamp: number): string {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Enter' && inputValue.trim()) {
-      // Will handle message sending later
+      errorMessage = '';
+      const result = handlePlayerChatInput(inputValue.trim());
+
+      if (!result.success) {
+        errorMessage = result.message || 'Error processing input';
+      }
+
       inputValue = '';
     }
   }
+
+  // Check if there's an active RFQ
+  $: hasActiveRfq = $activeVoiceRfqs.some(r => r.status === 'pending' || r.status === 'quoted');
 </script>
 
 <div class="module chat">
-  <div class="module-header">Chat</div>
+  <div class="module-header">
+    <span>Chat</span>
+    {#if hasActiveRfq}
+      <span class="rfq-indicator">RFQ ACTIVE</span>
+    {/if}
+  </div>
   <div class="module-content">
-    <div class="messages">
-      {#each messages as msg}
-        <div class="message {msg.from}">
-          <span class="sender">{msg.name}:</span>
-          <span class="text">{msg.text}</span>
-        </div>
-      {/each}
+    <div class="messages" bind:this={messagesContainer}>
+      {#if $chatMessages.length === 0}
+        <div class="empty-state">Waiting for client inquiries...</div>
+      {:else}
+        {#each $chatMessages as msg}
+          <div class="message {msg.sender}">
+            <span class="time">{formatTime(msg.timestamp)}</span>
+            <span class="text">{msg.text}</span>
+          </div>
+        {/each}
+      {/if}
     </div>
     <div class="input-area">
+      {#if errorMessage}
+        <div class="error-message">{errorMessage}</div>
+      {/if}
       <input
         type="text"
-        placeholder="Type price or message..."
+        placeholder={hasActiveRfq ? "Enter price (e.g. 1.0850 or 50) or 'care' to call off..." : "Waiting for RFQ..."}
         bind:value={inputValue}
         on:keydown={handleKeydown}
+        disabled={!hasActiveRfq}
       />
     </div>
   </div>
@@ -55,12 +88,30 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     border-bottom: 1px solid #3a3a5a;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .rfq-indicator {
+    background: #4a6a2a;
+    color: #4ade80;
+    padding: 2px 6px;
+    border-radius: 2px;
+    font-size: 9px;
+    animation: pulse 1s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
   }
 
   .module-content {
     flex: 1;
     display: flex;
     flex-direction: column;
+    min-height: 0;
   }
 
   .messages {
@@ -69,34 +120,54 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
+  }
+
+  .empty-state {
+    color: #666;
+    font-style: italic;
+    font-size: 11px;
+    padding: 12px;
+    text-align: center;
   }
 
   .message {
-    font-size: 12px;
+    font-size: 11px;
     padding: 4px 0;
+    display: flex;
+    gap: 8px;
   }
 
-  .message.sales .sender {
+  .message .time {
+    color: #555;
+    font-family: 'Consolas', monospace;
+    font-size: 9px;
+    flex-shrink: 0;
+  }
+
+  .message.sales .text {
     color: #60a5fa;
   }
 
-  .message.trader .sender {
+  .message.player .text {
     color: #4ade80;
-  }
-
-  .sender {
-    font-weight: 600;
-    margin-right: 6px;
+    font-family: 'Consolas', monospace;
   }
 
   .text {
     color: #ddd;
+    word-break: break-word;
   }
 
   .input-area {
     padding: 8px;
     border-top: 1px solid #3a3a5a;
+  }
+
+  .error-message {
+    color: #f87171;
+    font-size: 10px;
+    margin-bottom: 4px;
   }
 
   input {
@@ -112,6 +183,12 @@
   input:focus {
     outline: none;
     border-color: #4a4a7a;
+  }
+
+  input:disabled {
+    background: #1a1a2a;
+    color: #666;
+    cursor: not-allowed;
   }
 
   input::placeholder {
