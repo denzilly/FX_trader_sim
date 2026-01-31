@@ -36,7 +36,7 @@
 
     <div class="price-display">
       <span class="bid-price">{formatPrice($ePrices.bid)}</span>
-      <span class="spread">{($ePricingConfig.spreadPips / 10).toFixed(1)}</span>
+      <span class="spread">{$ePricingConfig.spreadPips}</span>
       <span class="ask-price">{formatPrice($ePrices.ask)}</span>
     </div>
 

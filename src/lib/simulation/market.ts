@@ -21,9 +21,9 @@ export interface MarketConfig {
 
 const DEFAULT_CONFIG: MarketConfig = {
   initialMid: 1.0850,
-  volatility: 0.0001,
+  volatility: 0.0003,  // Max ±3 pips per tick for more visible movement
   drift: 0,
-  baseSpread: 0.0008,
+  baseSpread: 0.00008, // 0.8 pips market spread (1 pip = 0.0001)
 };
 
 export function createMarketEngine(config: MarketConfig = DEFAULT_CONFIG) {

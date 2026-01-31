@@ -10,10 +10,10 @@ import type { TradeRequest } from '../simulation/client';
 
 // Market state
 export const marketPrice = writable<MarketPrice>({
-  mid: 1.085,
-  bid: 1.0846,
-  ask: 1.0854,
-  spread: 0.0008,
+  mid: 1.0850,
+  bid: 1.08496,
+  ask: 1.08504,
+  spread: 0.00008,  // 0.8 pips
   timestamp: Date.now(),
 });
 
@@ -37,10 +37,10 @@ export const trades = writable<Trade[]>([]);
 // Active trade requests from clients
 export const tradeRequests = writable<TradeRequest[]>([]);
 
-// E-pricing configuration
+// E-pricing configuration (all values in whole pips)
 export const ePricingConfig = writable({
-  spreadPips: 12, // 1.2 pips displayed as 12 tenths
-  skewPips: 0,
+  spreadPips: 2,  // 2 pips spread
+  skewPips: 0,    // 0 pips skew (positive = skew bid up, negative = skew bid down)
 });
 
 // Derived: e-pricing prices based on market + config
