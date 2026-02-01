@@ -10,6 +10,7 @@ import type { TradeRequest } from '../simulation/client';
 import type { TierSpreads } from '../simulation/spread';
 import type { ChatMessage, VoiceRfq } from '../simulation/voiceRfq';
 import type { ElectronicRfq } from '../simulation/electronicRfq';
+import type { NewsItem, ScheduledRelease } from '../simulation/newsEvents';
 
 // Market mid price (spread-independent)
 export const marketMid = writable<number>(1.0850);
@@ -147,3 +148,26 @@ export const electronicRfqs = writable<ElectronicRfq[]>([]);
 
 // Market impact pressure (in pips, for debugging)
 export const marketImpact = writable<number>(0);
+
+// TWAP Algo state
+export interface TwapState {
+  active: boolean;
+  side: 'buy' | 'sell';
+  totalSize: number;      // Total size in millions
+  sizePerInterval: number; // Size per 10 seconds in millions
+  filledSize: number;     // How much has been filled
+  startTime: number | null;
+}
+
+export const twapState = writable<TwapState>({
+  active: false,
+  side: 'buy',
+  totalSize: 0,
+  sizePerInterval: 1,
+  filledSize: 0,
+  startTime: null,
+});
+
+// News & Events
+export const newsHistory = writable<NewsItem[]>([]);
+export const upcomingRelease = writable<ScheduledRelease | null>(null);

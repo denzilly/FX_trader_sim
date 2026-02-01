@@ -173,16 +173,8 @@ export function createElectronicRfqEngine(config: ElectronicRfqConfig = DEFAULT_
   }
 
   function cleanupOldRfqs() {
-    // Remove RFQs that have been completed for more than 60 seconds
-    // Keep all statuses visible for a while so user can see what happened
-    const cutoff = Date.now() - 60000;
-    activeRfqs = activeRfqs.filter(r => {
-      if (r.status === 'quoting') return true;
-      // Keep completed RFQs (traded, passed, expired) for 60 seconds
-      if (r.tradedTime && r.tradedTime > cutoff) return true;
-      if (r.expiryTime > cutoff) return true;
-      return false;
-    });
+    // Keep all RFQs for the session - don't remove any
+    // This lets users see their full history in the blotter
   }
 
   return {

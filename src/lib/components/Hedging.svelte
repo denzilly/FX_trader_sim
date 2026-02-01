@@ -1,12 +1,30 @@
 <script lang="ts">
-  import { tierPrices } from '../stores/game';
-  import { executeHedgeTrade } from '../simulation/gameLoop';
+  import { tierPrices, twapState } from '../stores/game';
+  import { executeHedgeTrade, startTwap, stopTwap } from '../simulation/gameLoop';
   import { getBigFigure, getPips, formatSpreadPips } from '../utils/format';
 
   const TIERS = [1, 5, 10, 50] as const;
   type Tier = typeof TIERS[number];
 
   let selectedTier: Tier = 1;
+
+  // TWAP parameters
+  let twapSide: 'buy' | 'sell' = 'buy';
+  let twapTotalSize = 10;
+  let twapSizePerInterval = 1;
+
+  // Computed progress
+  $: twapProgress = $twapState.totalSize > 0
+    ? ($twapState.filledSize / $twapState.totalSize) * 100
+    : 0;
+
+  function handleActivateTwap() {
+    startTwap(twapSide, twapTotalSize, twapSizePerInterval);
+  }
+
+  function handleCancelTwap() {
+    stopTwap();
+  }
 
   // Get prices for the selected tier
   $: selectedPrices = $tierPrices[selectedTier.toString() as '1' | '5' | '10' | '50'];
@@ -70,6 +88,44 @@
           </button>
         </div>
       {/each}
+    </div>
+
+    <!-- TWAP Algo Section -->
+    <div class="twap-section">
+      <div class="twap-header">TWAP Algo</div>
+      {#if !$twapState.active}
+        <div class="twap-params">
+          <div class="param-row">
+            <label>Side</label>
+            <select bind:value={twapSide} class="twap-select">
+              <option value="buy">Buy</option>
+              <option value="sell">Sell</option>
+            </select>
+          </div>
+          <div class="param-row">
+            <label>Total Size</label>
+            <input type="number" bind:value={twapTotalSize} min="1" max="100" class="twap-input" />
+            <span class="unit">M</span>
+          </div>
+          <div class="param-row">
+            <label>Per 10s</label>
+            <input type="number" bind:value={twapSizePerInterval} min="1" max="10" class="twap-input" />
+            <span class="unit">M</span>
+          </div>
+          <button class="twap-activate" on:click={handleActivateTwap}>Activate</button>
+        </div>
+      {:else}
+        <div class="twap-active">
+          <div class="twap-info">
+            <span class="twap-side {$twapState.side}">{$twapState.side.toUpperCase()}</span>
+            <span class="twap-filled">{$twapState.filledSize}M / {$twapState.totalSize}M</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill {$twapState.side}" style="width: {twapProgress}%"></div>
+          </div>
+          <button class="twap-cancel" on:click={handleCancelTwap}>Cancel</button>
+        </div>
+      {/if}
     </div>
   </div>
 </div>
@@ -255,5 +311,147 @@
     font-size: 9px;
     color: #555;
     text-align: center;
+  }
+
+  /* TWAP Section */
+  .twap-section {
+    border-top: 1px solid #3a3a5a;
+    padding-top: 12px;
+    margin-top: 8px;
+  }
+
+  .twap-header {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #888;
+    margin-bottom: 8px;
+  }
+
+  .twap-params {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .param-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .param-row label {
+    font-size: 11px;
+    color: #888;
+    width: 70px;
+  }
+
+  .twap-select,
+  .twap-input {
+    background: #2a2a4a;
+    border: 1px solid #3a3a5a;
+    color: #ccc;
+    padding: 4px 8px;
+    border-radius: 2px;
+    font-size: 11px;
+    width: 70px;
+  }
+
+  .twap-input {
+    width: 50px;
+    text-align: right;
+  }
+
+  .unit {
+    font-size: 10px;
+    color: #666;
+  }
+
+  .twap-activate {
+    background: #3a4a6a;
+    border: none;
+    color: #60a5fa;
+    padding: 8px 16px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-top: 6px;
+  }
+
+  .twap-activate:hover {
+    background: #4a5a7a;
+  }
+
+  .twap-active {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .twap-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .twap-side {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 2px;
+  }
+
+  .twap-side.buy {
+    background: #2d4a3e;
+    color: #4ade80;
+  }
+
+  .twap-side.sell {
+    background: #4a2d3e;
+    color: #f87171;
+  }
+
+  .twap-filled {
+    font-size: 11px;
+    font-family: 'Consolas', monospace;
+    color: #ccc;
+  }
+
+  .progress-bar {
+    height: 8px;
+    background: #2a2a4a;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+  }
+
+  .progress-fill.buy {
+    background: linear-gradient(90deg, #22c55e, #4ade80);
+  }
+
+  .progress-fill.sell {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+  }
+
+  .twap-cancel {
+    background: #4a2d3e;
+    border: none;
+    color: #f87171;
+    padding: 6px 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .twap-cancel:hover {
+    background: #5a3d4e;
   }
 </style>

@@ -8,18 +8,25 @@ import { createSpreadEngine } from './spread';
 import { createPositionTracker, type Trade } from './position';
 import { createVoiceRfqEngine, type VoiceRfq } from './voiceRfq';
 import { createElectronicRfqEngine, type ElectronicRfq } from './electronicRfq';
-import { marketMid, tierSpreads, volatilityFactor, position, pnl, trades, chatMessages, activeVoiceRfqs, electronicRfqs, eTierPrices, marketImpact } from '../stores/game';
+import { marketMid, tierSpreads, tierPrices, volatilityFactor, position, pnl, trades, chatMessages, activeVoiceRfqs, electronicRfqs, eTierPrices, marketImpact, twapState, gameTime } from '../stores/game';
 import { get } from 'svelte/store';
 
 const PRICE_TICK_INTERVAL_MS = 100;
 const SPREAD_TICK_INTERVAL_MS = 500; // Spreads update slower than price
 const RFQ_TICK_INTERVAL_MS = 500; // Voice RFQ engine tick
 const ELECTRONIC_RFQ_TICK_INTERVAL_MS = 200; // Electronic RFQ tick (faster for live prices)
+const TWAP_TICK_INTERVAL_MS = 10000; // TWAP executes every 10 seconds
+const CLOCK_TICK_INTERVAL_MS = 1000; // Clock ticks every 1 second (= 1 game minute)
 
 let priceIntervalId: ReturnType<typeof setInterval> | null = null;
 let spreadIntervalId: ReturnType<typeof setInterval> | null = null;
 let rfqIntervalId: ReturnType<typeof setInterval> | null = null;
 let electronicRfqIntervalId: ReturnType<typeof setInterval> | null = null;
+let twapIntervalId: ReturnType<typeof setInterval> | null = null;
+let clockIntervalId: ReturnType<typeof setInterval> | null = null;
+
+// Game clock state - starts at 7:00 AM
+let gameClockMinutes = 7 * 60; // 7:00 AM in minutes from midnight
 
 const marketEngine = createMarketEngine();
 const spreadEngine = createSpreadEngine();
@@ -84,11 +91,27 @@ export function startGame() {
     executeElectronicTrade(rfq, price);
   });
 
+  // Clock tick - 1 real second = 1 game minute
+  gameClockMinutes = 7 * 60; // Reset to 7:00 AM
+  updateGameTime();
+  clockIntervalId = setInterval(() => {
+    gameClockMinutes += 1;
+    updateGameTime();
+  }, CLOCK_TICK_INTERVAL_MS);
+
   // Initial tick
   const initialPrice = marketEngine.tick();
   marketMid.set(initialPrice.mid);
   const initialSpreads = spreadEngine.tick();
   tierSpreads.set(initialSpreads);
+}
+
+function updateGameTime() {
+  const hours = Math.floor(gameClockMinutes / 60) % 24;
+  const minutes = gameClockMinutes % 60;
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+  gameTime.set(date);
 }
 
 export function stopGame() {
@@ -107,6 +130,14 @@ export function stopGame() {
   if (electronicRfqIntervalId !== null) {
     clearInterval(electronicRfqIntervalId);
     electronicRfqIntervalId = null;
+  }
+  if (twapIntervalId !== null) {
+    clearInterval(twapIntervalId);
+    twapIntervalId = null;
+  }
+  if (clockIntervalId !== null) {
+    clearInterval(clockIntervalId);
+    clockIntervalId = null;
   }
 }
 
@@ -290,4 +321,95 @@ export function rejectElectronicRfq(rfqId: string): boolean {
     electronicRfqs.set(electronicRfqEngine.getAllRfqs());
   }
   return result;
+}
+
+// TWAP Algo Trading
+function executeTwapSlice() {
+  const state = get(twapState);
+  if (!state.active) return;
+
+  const remainingSize = state.totalSize - state.filledSize;
+  if (remainingSize <= 0) {
+    // TWAP complete
+    stopTwap();
+    return;
+  }
+
+  // Execute a slice
+  const sliceSize = Math.min(state.sizePerInterval, remainingSize);
+  const currentTierPrices = get(tierPrices);
+
+  // Get the price for this slice size
+  const tier = sliceSize >= 50 ? '50' : sliceSize >= 10 ? '10' : sliceSize >= 5 ? '5' : '1';
+  const price = state.side === 'buy' ? currentTierPrices[tier].ask : currentTierPrices[tier].bid;
+
+  const trade = positionTracker.executeTrade({
+    side: state.side,
+    size: sliceSize,
+    price,
+    clientName: 'TWAP Algo',
+    type: 'algo',
+  });
+
+  // Record market impact
+  marketEngine.recordImpact({
+    size: sliceSize,
+    side: state.side,
+  });
+
+  // Update stores
+  position.set(positionTracker.getPosition());
+  trades.update(t => [...t, trade]);
+
+  // Update TWAP state
+  twapState.update(s => ({
+    ...s,
+    filledSize: s.filledSize + sliceSize,
+  }));
+
+  // Check if complete after this slice
+  if (state.filledSize + sliceSize >= state.totalSize) {
+    stopTwap();
+  }
+
+  // Update PnL immediately
+  const currentMid = get(marketMid);
+  updatePnL(currentMid);
+}
+
+export function startTwap(side: 'buy' | 'sell', totalSize: number, sizePerInterval: number) {
+  // Stop any existing TWAP
+  if (twapIntervalId !== null) {
+    clearInterval(twapIntervalId);
+  }
+
+  // Initialize TWAP state
+  twapState.set({
+    active: true,
+    side,
+    totalSize,
+    sizePerInterval,
+    filledSize: 0,
+    startTime: Date.now(),
+  });
+
+  // Execute first slice immediately
+  executeTwapSlice();
+
+  // Set up interval for subsequent slices
+  twapIntervalId = setInterval(() => {
+    executeTwapSlice();
+  }, TWAP_TICK_INTERVAL_MS);
+}
+
+export function stopTwap() {
+  if (twapIntervalId !== null) {
+    clearInterval(twapIntervalId);
+    twapIntervalId = null;
+  }
+
+  twapState.update(s => ({
+    ...s,
+    active: false,
+  }));
 }

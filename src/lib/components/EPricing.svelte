@@ -84,17 +84,13 @@
 
     <!-- Volume ladder with add-on spread controls -->
     <div class="volume-ladder">
-      <div class="ladder-header">
-        <span></span>
-        <span class="header-label">Bid</span>
-        <span class="header-label">Spread / Add-on</span>
-        <span class="header-label">Offer</span>
-      </div>
       {#each TIERS as tier}
         {@const prices = $eTierPrices[tier]}
         <div class="ladder-row">
-          <span class="tier-label">{tier}M</span>
-          <span class="ladder-price bid">{getPips(prices.bid)}</span>
+          <span class="ladder-price bid">
+            <span class="tier-label">{tier}M</span>
+            {getPips(prices.bid)}
+          </span>
           <div class="addon-controls">
             <span class="spread-above">{formatSpreadPips(prices.spread)}</span>
             <div class="addon-buttons">
@@ -103,7 +99,10 @@
               <button class="addon-btn" on:click={() => adjustAddOn(tier, 1)}>+</button>
             </div>
           </div>
-          <span class="ladder-price offer">{getPips(prices.ask)}</span>
+          <span class="ladder-price offer">
+            {getPips(prices.ask)}
+            <span class="tier-label">{tier}M</span>
+          </span>
         </div>
       {/each}
     </div>
@@ -259,34 +258,11 @@
     margin-top: 4px;
   }
 
-  .ladder-header {
-    display: grid;
-    grid-template-columns: 32px 1fr 70px 1fr;
-    gap: 4px;
-    align-items: center;
-    padding-bottom: 4px;
-    border-bottom: 1px solid #2a2a4a;
-  }
-
-  .header-label {
-    font-size: 9px;
-    color: #555;
-    text-transform: uppercase;
-    text-align: center;
-  }
-
   .ladder-row {
     display: grid;
-    grid-template-columns: 32px 1fr 70px 1fr;
+    grid-template-columns: 1fr 70px 1fr;
     gap: 4px;
     align-items: center;
-  }
-
-  .tier-label {
-    font-size: 10px;
-    color: #666;
-    text-align: right;
-    padding-right: 4px;
   }
 
   .ladder-price {
@@ -294,7 +270,10 @@
     font-size: 12px;
     padding: 4px 8px;
     border-radius: 2px;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
   }
 
   .ladder-price.bid {
@@ -305,6 +284,12 @@
   .ladder-price.offer {
     background: #223a32;
     color: #4ade80;
+  }
+
+  .ladder-price .tier-label {
+    font-size: 9px;
+    color: #888;
+    opacity: 0.8;
   }
 
   .addon-controls {

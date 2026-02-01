@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { startGame, stopGame } from './lib/simulation/gameLoop';
-  import { position, pnl, marketImpact } from './lib/stores/game';
+  import { position, pnl, marketImpact, gameTime } from './lib/stores/game';
   import { formatCurrency } from './lib/utils/format';
   import Hedging from './lib/components/Hedging.svelte';
   import EPricing from './lib/components/EPricing.svelte';
@@ -20,6 +20,12 @@
 
   $: positionSide = $position.amount > 0 ? 'LONG' : $position.amount < 0 ? 'SHORT' : 'FLAT';
   $: positionAmount = Math.abs($position.amount);
+
+  $: formattedTime = $gameTime.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
 </script>
 
 <main class="cockpit">
@@ -50,7 +56,7 @@
       </div>
     </div>
 
-    <div class="clock">09:32:15</div>
+    <div class="clock">{formattedTime}</div>
   </header>
 
   <div class="cockpit-grid">
@@ -59,6 +65,13 @@
     </div>
     <div class="grid-cell epricing-cell">
       <EPricing />
+    </div>
+    <div class="grid-cell placeholder-cell">
+      <!-- Placeholder for future module -->
+      <div class="module placeholder">
+        <div class="module-header">Available</div>
+        <div class="module-content empty-state">Drop module here</div>
+      </div>
     </div>
     <div class="grid-cell chart-cell">
       <Chart />
@@ -185,7 +198,7 @@
   .cockpit-grid {
     flex: 1;
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr 2fr 2fr;
     grid-template-rows: 1fr 1fr;
     gap: 8px;
     padding: 8px;
@@ -213,23 +226,61 @@
     grid-row: 1;
   }
 
-  .chart-cell {
+  .placeholder-cell {
     grid-column: 3;
     grid-row: 1;
   }
 
+  .chart-cell {
+    grid-column: 4;
+    grid-row: 1;
+  }
+
   .blotter-cell {
-    grid-column: 1;
+    grid-column: 1 / 3;
     grid-row: 2;
   }
 
   .rfq-blotter-cell {
-    grid-column: 2;
+    grid-column: 3;
     grid-row: 2;
   }
 
   .chat-cell {
-    grid-column: 3;
+    grid-column: 4;
     grid-row: 2;
+  }
+
+  /* Placeholder module styling */
+  .placeholder {
+    background: #1a1a2e;
+    border: 1px dashed #3a3a5a;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .placeholder .module-header {
+    background: #2a2a4a;
+    padding: 8px 12px;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px dashed #3a3a5a;
+    color: #666;
+  }
+
+  .placeholder .module-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .placeholder .empty-state {
+    color: #444;
+    font-style: italic;
+    font-size: 12px;
   }
 </style>

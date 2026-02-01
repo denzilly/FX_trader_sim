@@ -3,6 +3,9 @@
   import { rejectElectronicRfq } from '../simulation/gameLoop';
   import { formatPrice } from '../utils/format';
 
+  // Sort RFQs by request time (newest first)
+  $: sortedRfqs = [...$electronicRfqs].sort((a, b) => b.requestTime - a.requestTime);
+
   function formatTime(timestamp: number): string {
     const date = new Date(timestamp);
     return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -39,7 +42,7 @@
 <div class="module rfq-blotter">
   <div class="module-header">Electronic RFQs</div>
   <div class="module-content">
-    {#if $electronicRfqs.length === 0}
+    {#if sortedRfqs.length === 0}
       <div class="empty-state">No active RFQs</div>
     {:else}
       <table>
@@ -55,7 +58,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each $electronicRfqs as rfq (rfq.id)}
+          {#each sortedRfqs as rfq (rfq.id)}
             <tr class={rfq.status}>
               <td class="action-cell">
                 {#if rfq.status === 'quoting'}
@@ -162,8 +165,13 @@
     background: #1a3a2a;
   }
 
-  tr.passed, tr.expired {
+  tr.passed {
     background: #3a1a2a;
+  }
+
+  tr.expired {
+    background: #2a2a3a;
+    opacity: 0.7;
   }
 
   .action-cell {
@@ -195,7 +203,7 @@
   }
 
   .passed-icon {
-    color: #f87171;
+    color: #888;
   }
 
   .client {
@@ -253,7 +261,11 @@
     font-weight: 600;
   }
 
-  tr.passed .time, tr.expired .time {
+  tr.passed .time {
     color: #f87171;
+  }
+
+  tr.expired .time {
+    color: #666;
   }
 </style>
