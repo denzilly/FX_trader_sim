@@ -51,7 +51,7 @@ export const SAMPLE_CLIENTS: Client[] = [
     name: "Bill's Bakery",
     competitiveness: 0.9,
     patienceMin: 5,
-    patienceMax: 15,
+    patienceMax: 10,
     sizeMin: 1,
     sizeMax: 5,
     direction: 'buy',

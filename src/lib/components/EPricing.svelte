@@ -1,13 +1,23 @@
 <script lang="ts">
-  import { ePrices, ePricingConfig } from '../stores/game';
-  import { formatPrice } from '../utils/format';
+  import { eTierPrices, ePricingConfig } from '../stores/game';
+  import { getBigFigure, getPips, formatSpreadPips } from '../utils/format';
 
-  function widen() {
-    ePricingConfig.update(c => ({ ...c, spreadPips: c.spreadPips + 1 }));
-  }
+  const TIERS = ['1', '5', '10', '50'] as const;
+  type Tier = typeof TIERS[number];
 
-  function tighten() {
-    ePricingConfig.update(c => ({ ...c, spreadPips: Math.max(1, c.spreadPips - 1) }));
+  let selectedTier: Tier = '1';
+
+  // Get prices for the selected tier
+  $: selectedPrices = $eTierPrices[selectedTier];
+
+  function adjustAddOn(tier: Tier, delta: number) {
+    ePricingConfig.update(c => ({
+      ...c,
+      tierAddOnPips: {
+        ...c.tierAddOnPips,
+        [tier]: Math.max(0, c.tierAddOnPips[tier] + delta),
+      },
+    }));
   }
 
   function skewLeft() {
@@ -20,41 +30,82 @@
 
   function skewToMidBid() {
     // Skew so bid equals mid (extreme left skew)
-    ePricingConfig.update(c => ({ ...c, skewPips: Math.floor(c.spreadPips / 2) }));
+    const addOnPips = $ePricingConfig.tierAddOnPips[selectedTier];
+    ePricingConfig.update(c => ({ ...c, skewPips: Math.floor(addOnPips / 2) }));
   }
 
   function skewToMidAsk() {
     // Skew so ask equals mid (extreme right skew)
-    ePricingConfig.update(c => ({ ...c, skewPips: -Math.floor(c.spreadPips / 2) }));
+    const addOnPips = $ePricingConfig.tierAddOnPips[selectedTier];
+    ePricingConfig.update(c => ({ ...c, skewPips: -Math.floor(addOnPips / 2) }));
   }
 </script>
 
 <div class="module e-pricing">
-  <div class="module-header">e-Pricing</div>
+  <div class="module-header">
+    <span>e-Pricing</span>
+    <select bind:value={selectedTier} class="tier-select">
+      {#each TIERS as tier}
+        <option value={tier}>{tier}M</option>
+      {/each}
+    </select>
+  </div>
+
   <div class="module-content">
-    <button class="control-btn" on:click={widen}>WIDEN</button>
+    <!-- Main price display -->
+    <div class="main-prices">
+      <div class="price-btn bid">
+        <span class="big-figure">{getBigFigure(selectedPrices.bid)}</span>
+        <span class="pips">{getPips(selectedPrices.bid)}</span>
+        <span class="size-label">{selectedTier}M</span>
+        <span class="side-label">Bid</span>
+      </div>
 
-    <div class="price-display">
-      <span class="bid-price">{formatPrice($ePrices.bid)}</span>
-      <span class="spread">{$ePricingConfig.spreadPips}</span>
-      <span class="ask-price">{formatPrice($ePrices.ask)}</span>
+      <div class="spread-display">
+        <span class="spread-value">{formatSpreadPips(selectedPrices.spread)}</span>
+      </div>
+
+      <div class="price-btn offer">
+        <span class="big-figure">{getBigFigure(selectedPrices.ask)}</span>
+        <span class="pips">{getPips(selectedPrices.ask)}</span>
+        <span class="size-label">{selectedTier}M</span>
+        <span class="side-label">Offer</span>
+      </div>
     </div>
 
-    <button class="control-btn" on:click={tighten}>TIGHTEN</button>
-
+    <!-- Skew controls -->
     <div class="skew-controls">
-      <button class="skew-btn" on:click={skewToMidBid}>MID</button>
+      <button class="skew-btn" on:click={skewToMidBid} title="Skew bid to mid">MID</button>
       <button class="skew-btn" on:click={skewLeft}>←</button>
-      <span class="skew-value">{$ePricingConfig.skewPips}</span>
+      <span class="skew-value">{$ePricingConfig.skewPips >= 0 ? '+' : ''}{$ePricingConfig.skewPips}</span>
       <button class="skew-btn" on:click={skewRight}>→</button>
-      <button class="skew-btn" on:click={skewToMidAsk}>MID</button>
+      <button class="skew-btn" on:click={skewToMidAsk} title="Skew offer to mid">MID</button>
     </div>
 
+    <!-- Volume ladder with add-on spread controls -->
     <div class="volume-ladder">
-      <span>1M</span>
-      <span>5M</span>
-      <span>10M</span>
-      <span>50M</span>
+      <div class="ladder-header">
+        <span></span>
+        <span class="header-label">Bid</span>
+        <span class="header-label">Spread / Add-on</span>
+        <span class="header-label">Offer</span>
+      </div>
+      {#each TIERS as tier}
+        {@const prices = $eTierPrices[tier]}
+        <div class="ladder-row">
+          <span class="tier-label">{tier}M</span>
+          <span class="ladder-price bid">{getPips(prices.bid)}</span>
+          <div class="addon-controls">
+            <span class="spread-above">{formatSpreadPips(prices.spread)}</span>
+            <div class="addon-buttons">
+              <button class="addon-btn" on:click={() => adjustAddOn(tier, -1)}>−</button>
+              <span class="addon-value">+{prices.addOnPips}</span>
+              <button class="addon-btn" on:click={() => adjustAddOn(tier, 1)}>+</button>
+            </div>
+          </div>
+          <span class="ladder-price offer">{getPips(prices.ask)}</span>
+        </div>
+      {/each}
     </div>
   </div>
 </div>
@@ -76,6 +127,19 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     border-bottom: 1px solid #3a3a5a;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .tier-select {
+    background: #1a1a2e;
+    border: 1px solid #3a3a5a;
+    color: #ccc;
+    padding: 2px 8px;
+    border-radius: 2px;
+    font-size: 11px;
+    cursor: pointer;
   }
 
   .module-content {
@@ -83,58 +147,85 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 8px;
+    gap: 12px;
   }
 
-  .control-btn {
-    background: #2a2a4a;
-    border: 1px solid #3a3a5a;
-    color: #ccc;
-    padding: 6px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 11px;
-    width: 100%;
+  /* Main price display */
+  .main-prices {
+    display: grid;
+    grid-template-columns: 1fr 40px 1fr;
+    gap: 4px;
+    align-items: stretch;
   }
 
-  .control-btn:hover {
-    background: #3a3a5a;
-  }
-
-  .price-display {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 8px 0;
-  }
-
-  .bid-price, .ask-price {
-    font-family: 'Consolas', monospace;
-    font-size: 16px;
+  .price-btn {
+    position: relative;
     padding: 8px 12px;
     border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 70px;
   }
 
-  .bid-price {
-    background: #2d4a3e;
-    color: #4ade80;
-  }
-
-  .ask-price {
+  .price-btn.bid {
     background: #4a2d3e;
     color: #f87171;
   }
 
-  .spread {
-    font-size: 11px;
-    color: #888;
+  .price-btn.offer {
+    background: #2d4a3e;
+    color: #4ade80;
   }
 
+  .big-figure {
+    position: absolute;
+    top: 4px;
+    left: 8px;
+    font-size: 11px;
+    font-family: 'Consolas', monospace;
+    opacity: 0.8;
+  }
+
+  .pips {
+    font-family: 'Consolas', monospace;
+    font-size: 32px;
+    font-weight: 600;
+    line-height: 1;
+    margin-top: 8px;
+  }
+
+  .size-label {
+    position: absolute;
+    top: 4px;
+    right: 8px;
+    font-size: 10px;
+    opacity: 0.7;
+  }
+
+  .side-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    opacity: 0.7;
+    margin-top: 4px;
+  }
+
+  .spread-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .spread-value {
+    font-size: 12px;
+    color: #666;
+  }
+
+  /* Skew controls */
   .skew-controls {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 4px;
   }
 
@@ -154,27 +245,114 @@
 
   .skew-value {
     font-family: 'Consolas', monospace;
-    min-width: 24px;
+    min-width: 32px;
+    text-align: center;
+    font-size: 11px;
+    color: #888;
+  }
+
+  /* Volume ladder */
+  .volume-ladder {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 4px;
+  }
+
+  .ladder-header {
+    display: grid;
+    grid-template-columns: 32px 1fr 70px 1fr;
+    gap: 4px;
+    align-items: center;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #2a2a4a;
+  }
+
+  .header-label {
+    font-size: 9px;
+    color: #555;
+    text-transform: uppercase;
     text-align: center;
   }
 
-  .volume-ladder {
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-    font-size: 11px;
-    color: #666;
-    margin-top: auto;
+  .ladder-row {
+    display: grid;
+    grid-template-columns: 32px 1fr 70px 1fr;
+    gap: 4px;
+    align-items: center;
   }
 
-  .volume-ladder span {
+  .tier-label {
+    font-size: 10px;
+    color: #666;
+    text-align: right;
+    padding-right: 4px;
+  }
+
+  .ladder-price {
+    font-family: 'Consolas', monospace;
+    font-size: 12px;
     padding: 4px 8px;
+    border-radius: 2px;
+    text-align: center;
+  }
+
+  .ladder-price.bid {
+    background: #3a2232;
+    color: #f87171;
+  }
+
+  .ladder-price.offer {
+    background: #223a32;
+    color: #4ade80;
+  }
+
+  .addon-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+  }
+
+  .spread-above {
+    font-size: 10px;
+    color: #888;
+    font-family: 'Consolas', monospace;
+  }
+
+  .addon-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+  }
+
+  .addon-btn {
     background: #2a2a4a;
+    border: 1px solid #3a3a5a;
+    color: #888;
+    width: 18px;
+    height: 18px;
     border-radius: 2px;
     cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
   }
 
-  .volume-ladder span:hover {
+  .addon-btn:hover {
     background: #3a3a5a;
+    color: #ccc;
+  }
+
+  .addon-value {
+    font-family: 'Consolas', monospace;
+    font-size: 10px;
+    color: #60a5fa;
+    min-width: 24px;
+    text-align: center;
   }
 </style>

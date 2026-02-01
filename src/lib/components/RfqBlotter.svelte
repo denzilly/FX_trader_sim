@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { electronicRfqs, ePrices } from '../stores/game';
+  import { electronicRfqs, eTierPrices } from '../stores/game';
   import { rejectElectronicRfq } from '../simulation/gameLoop';
   import { formatPrice } from '../utils/format';
 
@@ -18,11 +18,21 @@
     rejectElectronicRfq(rfqId);
   }
 
-  // Get the price for a given side
-  function getPrice(side: 'buy' | 'sell'): number {
+  // Get the tier key for a given size
+  function getTierForSize(size: number): '1' | '5' | '10' | '50' {
+    if (size >= 50) return '50';
+    if (size >= 10) return '10';
+    if (size >= 5) return '5';
+    return '1';
+  }
+
+  // Get the price for a given side and size
+  function getPrice(side: 'buy' | 'sell', size: number): number {
+    const tier = getTierForSize(size);
+    const tierPrices = $eTierPrices[tier];
     // If client is buying, we show our offer (ask)
     // If client is selling, we show our bid
-    return side === 'buy' ? $ePrices.ask : $ePrices.bid;
+    return side === 'buy' ? tierPrices.ask : tierPrices.bid;
   }
 </script>
 
@@ -39,6 +49,7 @@
             <th>Client</th>
             <th>Side</th>
             <th>Size</th>
+            <th>Banks</th>
             <th>Price</th>
             <th>Time</th>
           </tr>
@@ -60,11 +71,12 @@
               <td class="client">{rfq.client.name}</td>
               <td class="side {rfq.side}">{rfq.side === 'buy' ? 'OFFER' : 'BID'}</td>
               <td class="size">{rfq.size}M</td>
+              <td class="banks">{rfq.banksAsked}</td>
               <td class="price">
                 {#if rfq.status === 'traded' && rfq.tradedPrice}
                   {formatPrice(rfq.tradedPrice)}
                 {:else if rfq.status === 'quoting'}
-                  {formatPrice(getPrice(rfq.side))}
+                  {formatPrice(getPrice(rfq.side, rfq.size))}
                 {:else}
                   -
                 {/if}
@@ -151,8 +163,7 @@
   }
 
   tr.passed, tr.expired {
-    background: #2a2a3a;
-    opacity: 0.6;
+    background: #3a1a2a;
   }
 
   .action-cell {
@@ -184,7 +195,7 @@
   }
 
   .passed-icon {
-    color: #666;
+    color: #f87171;
   }
 
   .client {
@@ -208,6 +219,12 @@
 
   .size {
     font-family: 'Consolas', monospace;
+  }
+
+  .banks {
+    font-family: 'Consolas', monospace;
+    color: #888;
+    font-size: 10px;
   }
 
   .price {
@@ -237,6 +254,6 @@
   }
 
   tr.passed .time, tr.expired .time {
-    color: #666;
+    color: #f87171;
   }
 </style>

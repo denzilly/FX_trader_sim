@@ -16,6 +16,7 @@ export interface ElectronicRfq {
   status: 'quoting' | 'traded' | 'rejected' | 'expired' | 'passed';
   tradedPrice?: number;
   tradedTime?: number;
+  banksAsked: number; // Number of banks being asked (for market impact)
 }
 
 export interface ElectronicRfqConfig {
@@ -57,6 +58,7 @@ export function createElectronicRfqEngine(config: ElectronicRfqConfig = DEFAULT_
       : client.direction;
     const size = randomInt(client.sizeMin, client.sizeMax);
     const patience = randomBetween(client.patienceMin, client.patienceMax);
+    const banksAsked = randomInt(client.banksAskedMin, client.banksAskedMax);
 
     const now = Date.now();
 
@@ -68,10 +70,19 @@ export function createElectronicRfqEngine(config: ElectronicRfqConfig = DEFAULT_
       requestTime: now,
       expiryTime: now + patience * 1000,
       status: 'quoting',
+      banksAsked,
     };
   }
 
-  function tick(ePrices: { bid: number; ask: number }): {
+  // Get the tier key for a given size
+  function getTierForSize(size: number): '1' | '5' | '10' | '50' {
+    if (size >= 50) return '50';
+    if (size >= 10) return '10';
+    if (size >= 5) return '5';
+    return '1';
+  }
+
+  function tick(eTierPrices: Record<'1' | '5' | '10' | '50', { bid: number; ask: number }>): {
     newRfqs: ElectronicRfq[];
     tradedRfqs: ElectronicRfq[];
     expiredRfqs: ElectronicRfq[];
@@ -96,10 +107,14 @@ export function createElectronicRfqEngine(config: ElectronicRfqConfig = DEFAULT_
     for (const rfq of activeRfqs) {
       if (rfq.status !== 'quoting') continue;
 
+      // Get the appropriate tier prices for this RFQ's size
+      const tier = getTierForSize(rfq.size);
+      const tierPrices = eTierPrices[tier];
+
       // Check for expiry
       if (now >= rfq.expiryTime) {
         // Evaluate if client trades before expiring
-        const price = rfq.side === 'buy' ? ePrices.ask : ePrices.bid;
+        const price = rfq.side === 'buy' ? tierPrices.ask : tierPrices.bid;
         const traded = evaluateTrade(rfq, price);
 
         if (traded) {
@@ -158,11 +173,14 @@ export function createElectronicRfqEngine(config: ElectronicRfqConfig = DEFAULT_
   }
 
   function cleanupOldRfqs() {
-    // Remove RFQs that have been completed for more than 30 seconds
-    const cutoff = Date.now() - 30000;
+    // Remove RFQs that have been completed for more than 60 seconds
+    // Keep all statuses visible for a while so user can see what happened
+    const cutoff = Date.now() - 60000;
     activeRfqs = activeRfqs.filter(r => {
       if (r.status === 'quoting') return true;
-      if (r.status === 'traded' && r.tradedTime && r.tradedTime > cutoff) return true;
+      // Keep completed RFQs (traded, passed, expired) for 60 seconds
+      if (r.tradedTime && r.tradedTime > cutoff) return true;
+      if (r.expiryTime > cutoff) return true;
       return false;
     });
   }

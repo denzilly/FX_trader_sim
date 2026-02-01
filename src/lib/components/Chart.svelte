@@ -11,7 +11,7 @@
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D | null = null;
 
-  const MAX_POINTS = 600; // 60 seconds at 100ms ticks
+  const MAX_POINTS = 1800; // 180 seconds at 100ms ticks
 
   // Subscribe to market price updates
   $: {
@@ -53,12 +53,16 @@
     ctx.fillRect(0, 0, width, height);
 
     // Calculate price range (auto-scaling with padding)
+    // Minimum range of 20 pips (0.0020) to prevent jarring movements
     const prices = priceHistory.map(p => p.mid);
     const minPrice = Math.min(...prices);
     const maxPrice = Math.max(...prices);
-    const priceRange = maxPrice - minPrice || 0.0001;
-    const paddedMin = minPrice - priceRange * 0.1;
-    const paddedMax = maxPrice + priceRange * 0.1;
+    const actualRange = maxPrice - minPrice;
+    const minRange = 0.0020; // 20 pips minimum
+    const priceRange = Math.max(actualRange, minRange);
+    const midPrice = (minPrice + maxPrice) / 2;
+    const paddedMin = midPrice - priceRange * 0.6;
+    const paddedMax = midPrice + priceRange * 0.6;
     const paddedRange = paddedMax - paddedMin;
 
     // Draw grid lines

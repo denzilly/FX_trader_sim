@@ -81,24 +81,53 @@ export const trades = writable<Trade[]>([]);
 // Active trade requests from clients
 export const tradeRequests = writable<TradeRequest[]>([]);
 
-// E-pricing configuration (all values in whole pips)
+// E-pricing configuration per tier (all values in whole pips)
+// These are ADD-ON spreads on top of the market tier spreads
 export const ePricingConfig = writable({
-  spreadPips: 2,  // 2 pips spread
+  tierAddOnPips: {
+    '1': 1,    // +1 pip add-on for 1M
+    '5': 1,    // +1 pip add-on for 5M
+    '10': 2,   // +2 pips add-on for 10M
+    '50': 3,   // +3 pips add-on for 50M
+  } as Record<'1' | '5' | '10' | '50', number>,
   skewPips: 0,    // 0 pips skew (positive = skew bid up, negative = skew bid down)
 });
 
-// Derived: e-pricing prices based on market + config
-export const ePrices = derived(
-  [marketPrice, ePricingConfig],
-  ([$market, $config]) => {
-    const spreadInPrice = $config.spreadPips * 0.0001;
+// Derived: e-pricing prices per tier based on market + config
+export const eTierPrices = derived(
+  [marketMid, tierSpreads, ePricingConfig],
+  ([$mid, $spreads, $config]) => {
+    const tiers = ['1', '5', '10', '50'] as const;
+    const prices: Record<string, { bid: number; ask: number; spread: number; addOnPips: number }> = {};
     const skewInPrice = $config.skewPips * 0.0001;
-    const halfSpread = spreadInPrice / 2;
 
+    for (const tier of tiers) {
+      // Market spread + e-pricing add-on spread
+      const marketSpread = $spreads[tier];
+      const addOnSpread = $config.tierAddOnPips[tier] * 0.0001;
+      const totalSpread = marketSpread + addOnSpread;
+      const halfSpread = totalSpread / 2;
+
+      prices[tier] = {
+        bid: $mid - halfSpread + skewInPrice,
+        ask: $mid + halfSpread + skewInPrice,
+        spread: totalSpread,
+        addOnPips: $config.tierAddOnPips[tier],
+      };
+    }
+
+    return prices as Record<'1' | '5' | '10' | '50', { bid: number; ask: number; spread: number; addOnPips: number }>;
+  }
+);
+
+// Legacy: single e-prices for backwards compatibility (uses 1M tier)
+export const ePrices = derived(
+  [eTierPrices],
+  ([$tierPrices]) => {
     return {
-      bid: $market.mid - halfSpread + skewInPrice,
-      ask: $market.mid + halfSpread + skewInPrice,
-      spread: spreadInPrice,
+      bid: $tierPrices['1'].bid,
+      ask: $tierPrices['1'].ask,
+      spread: $tierPrices['1'].spread,
     };
   }
 );
@@ -115,3 +144,6 @@ export const activeVoiceRfqs = writable<VoiceRfq[]>([]);
 
 // Electronic RFQs (for e-pricing blotter)
 export const electronicRfqs = writable<ElectronicRfq[]>([]);
+
+// Market impact pressure (in pips, for debugging)
+export const marketImpact = writable<number>(0);

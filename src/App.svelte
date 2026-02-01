@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { startGame, stopGame } from './lib/simulation/gameLoop';
-  import { position, pnl } from './lib/stores/game';
+  import { position, pnl, marketImpact } from './lib/stores/game';
   import { formatCurrency } from './lib/utils/format';
   import Hedging from './lib/components/Hedging.svelte';
   import EPricing from './lib/components/EPricing.svelte';
@@ -42,6 +42,11 @@
       <div class="stat pnl-stat {$pnl.total >= 0 ? 'positive' : 'negative'}">
         <span class="stat-label">PnL</span>
         <span class="stat-value">{formatCurrency($pnl.total)}</span>
+      </div>
+
+      <div class="stat impact-stat {$marketImpact > 0 ? 'positive' : $marketImpact < 0 ? 'negative' : ''}">
+        <span class="stat-label">Impact</span>
+        <span class="stat-value">{$marketImpact >= 0 ? '+' : ''}{$marketImpact.toFixed(2)} pips</span>
       </div>
     </div>
 
@@ -155,6 +160,18 @@
   }
 
   .pnl-stat.negative .stat-value {
+    color: #f87171;
+  }
+
+  .impact-stat {
+    background: #2a2a4a;
+  }
+
+  .impact-stat.positive .stat-value {
+    color: #4ade80;
+  }
+
+  .impact-stat.negative .stat-value {
     color: #f87171;
   }
 

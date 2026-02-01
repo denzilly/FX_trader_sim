@@ -38,6 +38,7 @@ export interface VoiceRfq extends TradeRequest {
   playerQuote: number | null;
   decisionTime: number; // When the client will decide
   calledOff: boolean;
+  banksAsked: number; // Number of banks being asked (for market impact)
 }
 
 export interface ChatMessage {
@@ -100,6 +101,7 @@ export function createVoiceRfqEngine(config: VoiceRfqConfig = DEFAULT_CONFIG) {
     const size = randomInt(client.sizeMin, client.sizeMax);
     const salesperson = randomChoice(SALESPEOPLE);
     const patience = randomBetween(client.patienceMin, client.patienceMax);
+    const banksAsked = randomInt(client.banksAskedMin, client.banksAskedMax);
 
     const now = Date.now();
 
@@ -116,6 +118,7 @@ export function createVoiceRfqEngine(config: VoiceRfqConfig = DEFAULT_CONFIG) {
       playerQuote: null,
       decisionTime: now + patience * 1000,
       calledOff: false,
+      banksAsked,
     };
   }
 
@@ -269,9 +272,7 @@ export function createVoiceRfqEngine(config: VoiceRfqConfig = DEFAULT_CONFIG) {
     rfq.playerQuote = price;
     rfq.status = 'quoted';
 
-    // Reset decision time from now (client needs time to evaluate new price)
-    const patience = randomBetween(rfq.client.patienceMin, rfq.client.patienceMax);
-    rfq.decisionTime = Date.now() + patience * 1000;
+    // Keep original decision time - client won't wait longer just because you updated the price
 
     const priceStr = price.toFixed(4);
     const message: ChatMessage = {

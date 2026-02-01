@@ -8,7 +8,7 @@ import { createSpreadEngine } from './spread';
 import { createPositionTracker, type Trade } from './position';
 import { createVoiceRfqEngine, type VoiceRfq } from './voiceRfq';
 import { createElectronicRfqEngine, type ElectronicRfq } from './electronicRfq';
-import { marketMid, tierSpreads, volatilityFactor, position, pnl, trades, chatMessages, activeVoiceRfqs, electronicRfqs, ePrices } from '../stores/game';
+import { marketMid, tierSpreads, volatilityFactor, position, pnl, trades, chatMessages, activeVoiceRfqs, electronicRfqs, eTierPrices, marketImpact } from '../stores/game';
 import { get } from 'svelte/store';
 
 const PRICE_TICK_INTERVAL_MS = 100;
@@ -36,6 +36,10 @@ export function startGame() {
   priceIntervalId = setInterval(() => {
     const price = marketEngine.tick();
     marketMid.set(price.mid);
+
+    // Update market impact (in pips for display)
+    const impactPips = marketEngine.getCurrentImpact() / 0.0001;
+    marketImpact.set(impactPips);
 
     // Update PnL with current market price
     updatePnL(price.mid);
@@ -67,8 +71,8 @@ export function startGame() {
 
   // Electronic RFQ tick
   electronicRfqIntervalId = setInterval(() => {
-    const currentEPrices = get(ePrices);
-    electronicRfqEngine.tick(currentEPrices);
+    const currentETierPrices = get(eTierPrices);
+    electronicRfqEngine.tick(currentETierPrices);
     electronicRfqs.set(electronicRfqEngine.getAllRfqs());
 
     // Cleanup old RFQs periodically
@@ -141,6 +145,13 @@ export function executeHedgeTrade(side: 'buy' | 'sell', size: number, price: num
     type: 'hedge',
   });
 
+  // Record market impact (hedge trades have full impact, no banksAsked)
+  marketEngine.recordImpact({
+    size,
+    side,
+    // banksAsked undefined = full impact (we're hitting the market)
+  });
+
   // Update stores
   position.set(positionTracker.getPosition());
   trades.update(t => [...t, trade]);
@@ -164,6 +175,14 @@ function executeVoiceTrade(rfq: VoiceRfq): Trade {
     clientId: rfq.client.id,
     clientName: rfq.client.name,
     type: 'voice',
+  });
+
+  // Record market impact (based on how many banks client asked)
+  // Client side determines market impact direction
+  marketEngine.recordImpact({
+    size: rfq.size,
+    side: rfq.side, // Client's side - if client buys, market goes up
+    banksAsked: rfq.banksAsked,
   });
 
   // Update stores
@@ -243,6 +262,14 @@ function executeElectronicTrade(rfq: ElectronicRfq, price: number): Trade {
     clientId: rfq.client.id,
     clientName: rfq.client.name,
     type: 'electronic',
+  });
+
+  // Record market impact (based on how many banks client asked)
+  // Client side determines market impact direction
+  marketEngine.recordImpact({
+    size: rfq.size,
+    side: rfq.side, // Client's side - if client buys, market goes up
+    banksAsked: rfq.banksAsked,
   });
 
   // Update stores
