@@ -9,6 +9,10 @@
   import TradeBlotter from './lib/components/TradeBlotter.svelte';
   import RfqBlotter from './lib/components/RfqBlotter.svelte';
   import Chat from './lib/components/Chat.svelte';
+  import NewsEvents from './lib/components/NewsEvents.svelte';
+  import Settings from './lib/components/Settings.svelte';
+
+  let settingsOpen = false;
 
   onMount(() => {
     startGame();
@@ -57,6 +61,12 @@
     </div>
 
     <div class="clock">{formattedTime}</div>
+    <button class="settings-btn" on:click={() => settingsOpen = true} title="Settings">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </svg>
+    </button>
   </header>
 
   <div class="cockpit-grid">
@@ -66,12 +76,8 @@
     <div class="grid-cell epricing-cell">
       <EPricing />
     </div>
-    <div class="grid-cell placeholder-cell">
-      <!-- Placeholder for future module -->
-      <div class="module placeholder">
-        <div class="module-header">Available</div>
-        <div class="module-content empty-state">Drop module here</div>
-      </div>
+    <div class="grid-cell news-cell">
+      <NewsEvents />
     </div>
     <div class="grid-cell chart-cell">
       <Chart />
@@ -87,6 +93,8 @@
     </div>
   </div>
 </main>
+
+<Settings bind:isOpen={settingsOpen} />
 
 <style>
   .cockpit {
@@ -195,6 +203,24 @@
     margin-left: 16px;
   }
 
+  .settings-btn {
+    background: #2a2a4a;
+    border: 1px solid #3a3a5a;
+    border-radius: 4px;
+    padding: 6px 8px;
+    color: #888;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 8px;
+  }
+
+  .settings-btn:hover {
+    background: #3a3a5a;
+    color: #fff;
+  }
+
   .cockpit-grid {
     flex: 1;
     display: grid;
@@ -226,7 +252,7 @@
     grid-row: 1;
   }
 
-  .placeholder-cell {
+  .news-cell {
     grid-column: 3;
     grid-row: 1;
   }
@@ -249,38 +275,5 @@
   .chat-cell {
     grid-column: 4;
     grid-row: 2;
-  }
-
-  /* Placeholder module styling */
-  .placeholder {
-    background: #1a1a2e;
-    border: 1px dashed #3a3a5a;
-    border-radius: 4px;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .placeholder .module-header {
-    background: #2a2a4a;
-    padding: 8px 12px;
-    font-weight: 600;
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    border-bottom: 1px dashed #3a3a5a;
-    color: #666;
-  }
-
-  .placeholder .module-content {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .placeholder .empty-state {
-    color: #444;
-    font-style: italic;
-    font-size: 12px;
   }
 </style>

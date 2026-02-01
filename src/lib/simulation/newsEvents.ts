@@ -325,12 +325,20 @@ export interface NewsEventsConfig {
   newsChancePerMinute: number;      // Probability of news each game minute
   minNewsBetweenMinutes: number;    // Minimum game minutes between news
   releasesPerDay: number;           // How many economic releases to schedule
+  releaseDelayMin?: number;         // Min minutes until next release
+  releaseDelayMax?: number;         // Max minutes until next release
+  newsEnabled?: boolean;            // Enable random news
+  releasesEnabled?: boolean;        // Enable scheduled releases
 }
 
 const DEFAULT_CONFIG: NewsEventsConfig = {
-  newsChancePerMinute: 0.08,        // ~8% chance per game minute = ~5 per hour
-  minNewsBetweenMinutes: 5,         // At least 5 game minutes between news
-  releasesPerDay: 3,                // 3 economic releases per day
+  newsChancePerMinute: 0.03,        // ~3% chance per game minute
+  minNewsBetweenMinutes: 60,        // At least 60 game minutes between news
+  releasesPerDay: 1,                // 1 economic release at a time (always one upcoming)
+  releaseDelayMin: 60,
+  releaseDelayMax: 120,
+  newsEnabled: true,
+  releasesEnabled: true,
 };
 
 function randomBetween(min: number, max: number): number {
@@ -352,32 +360,37 @@ export function createNewsEventsEngine(config: NewsEventsConfig = DEFAULT_CONFIG
   let onMarketImpact: ((immediatePips: number, driftPips: number, driftMinutes: number) => void) | null = null;
   let onVolatilityBoost: ((boost: number) => void) | null = null;
 
-  function scheduleReleasesForDay(startMinute: number) {
-    scheduledReleases = [];
+  function scheduleNextRelease(afterMinute: number) {
+    // Pick a random release type
+    const releaseType = randomChoice(ECONOMIC_RELEASES);
 
-    // Pick random releases for the day
-    const shuffled = [...ECONOMIC_RELEASES].sort(() => Math.random() - 0.5);
-    const selected = shuffled.slice(0, config.releasesPerDay);
+    // Schedule it based on config delay range
+    const delayMin = config.releaseDelayMin ?? 60;
+    const delayMax = config.releaseDelayMax ?? 120;
+    const delayMinutes = Math.floor(randomBetween(delayMin, delayMax));
+    const scheduledMinutes = afterMinute + delayMinutes;
 
-    for (const releaseType of selected) {
-      const scheduledMinutes = releaseType.typicalHour * 60 + releaseType.typicalMinute;
+    const expected = randomBetween(releaseType.expectedRange[0], releaseType.expectedRange[1]);
 
-      // Only schedule if it's in the future
-      if (scheduledMinutes > startMinute) {
-        const expected = randomBetween(releaseType.expectedRange[0], releaseType.expectedRange[1]);
+    const release: ScheduledRelease = {
+      id: crypto.randomUUID(),
+      type: releaseType,
+      scheduledGameMinutes: scheduledMinutes,
+      expected: Math.round(expected * 10) / 10,
+      released: false,
+    };
 
-        scheduledReleases.push({
-          id: crypto.randomUUID(),
-          type: releaseType,
-          scheduledGameMinutes: scheduledMinutes,
-          expected: Math.round(expected * 10) / 10,
-          released: false,
-        });
-      }
+    scheduledReleases.push(release);
+  }
+
+  function ensureUpcomingRelease(currentMinute: number) {
+    // Remove old released items
+    scheduledReleases = scheduledReleases.filter(r => !r.released);
+
+    // If no upcoming release, schedule one
+    if (scheduledReleases.length === 0) {
+      scheduleNextRelease(currentMinute);
     }
-
-    // Sort by time
-    scheduledReleases.sort((a, b) => a.scheduledGameMinutes - b.scheduledGameMinutes);
   }
 
   function tick(gameMinutes: number): { newItems: NewsItem[] } {
@@ -389,27 +402,33 @@ export function createNewsEventsEngine(config: NewsEventsConfig = DEFAULT_CONFIG
     }
     lastTickMinute = gameMinutes;
 
-    // Check for scheduled releases
-    for (const release of scheduledReleases) {
-      if (!release.released && gameMinutes >= release.scheduledGameMinutes) {
-        const item = executeRelease(release, gameMinutes);
+    // Check for scheduled releases (only process one at a time)
+    if (config.releasesEnabled !== false) {
+      const upcomingRelease = scheduledReleases.find(r => !r.released);
+      if (upcomingRelease && gameMinutes >= upcomingRelease.scheduledGameMinutes) {
+        const item = executeRelease(upcomingRelease, gameMinutes);
         newItems.push(item);
         newsHistory.unshift(item);
         lastNewsMinute = gameMinutes;
+
+        // Schedule the next release
+        ensureUpcomingRelease(gameMinutes);
       }
     }
 
     // Random news generation
-    const hourOfDay = Math.floor(gameMinutes / 60) % 24;
-    const isMarketHours = hourOfDay >= 7 && hourOfDay <= 17;
+    if (config.newsEnabled !== false) {
+      const hourOfDay = Math.floor(gameMinutes / 60) % 24;
+      const isMarketHours = hourOfDay >= 7 && hourOfDay <= 17;
 
-    if (isMarketHours && gameMinutes - lastNewsMinute >= config.minNewsBetweenMinutes) {
-      if (Math.random() < config.newsChancePerMinute) {
-        const item = generateRandomNews(gameMinutes);
-        if (item) {
-          newItems.push(item);
-          newsHistory.unshift(item);
-          lastNewsMinute = gameMinutes;
+      if (isMarketHours && gameMinutes - lastNewsMinute >= config.minNewsBetweenMinutes) {
+        if (Math.random() < config.newsChancePerMinute) {
+          const item = generateRandomNews(gameMinutes);
+          if (item) {
+            newItems.push(item);
+            newsHistory.unshift(item);
+            lastNewsMinute = gameMinutes;
+          }
         }
       }
     }
@@ -522,9 +541,11 @@ export function createNewsEventsEngine(config: NewsEventsConfig = DEFAULT_CONFIG
 
   function reset(startMinute: number) {
     newsHistory = [];
+    scheduledReleases = [];
     lastNewsMinute = -999;
     lastTickMinute = -1;
-    scheduleReleasesForDay(startMinute);
+    // Schedule the first release
+    scheduleNextRelease(startMinute);
   }
 
   return {

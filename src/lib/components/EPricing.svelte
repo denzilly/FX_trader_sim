@@ -5,17 +5,22 @@
   const TIERS = ['1', '5', '10', '50'] as const;
   type Tier = typeof TIERS[number];
 
-  let selectedTier: Tier = '1';
+  // Always show 1M price in main display
+  $: mainPrices = $eTierPrices['1'];
 
-  // Get prices for the selected tier
-  $: selectedPrices = $eTierPrices[selectedTier];
-
-  function adjustAddOn(tier: Tier, delta: number) {
+  function adjustBaseSpread(delta: number) {
     ePricingConfig.update(c => ({
       ...c,
-      tierAddOnPips: {
-        ...c.tierAddOnPips,
-        [tier]: Math.max(0, c.tierAddOnPips[tier] + delta),
+      baseSpreadPips: Math.max(0, c.baseSpreadPips + delta),
+    }));
+  }
+
+  function adjustAdditional(tier: '5' | '10' | '50', delta: number) {
+    ePricingConfig.update(c => ({
+      ...c,
+      tierAdditionalPips: {
+        ...c.tierAdditionalPips,
+        [tier]: Math.max(0, c.tierAdditionalPips[tier] + delta),
       },
     }));
   }
@@ -30,13 +35,13 @@
 
   function skewToMidBid() {
     // Skew so bid equals mid (extreme left skew)
-    const addOnPips = $ePricingConfig.tierAddOnPips[selectedTier];
+    const addOnPips = $ePricingConfig.baseSpreadPips;
     ePricingConfig.update(c => ({ ...c, skewPips: Math.floor(addOnPips / 2) }));
   }
 
   function skewToMidAsk() {
     // Skew so ask equals mid (extreme right skew)
-    const addOnPips = $ePricingConfig.tierAddOnPips[selectedTier];
+    const addOnPips = $ePricingConfig.baseSpreadPips;
     ePricingConfig.update(c => ({ ...c, skewPips: -Math.floor(addOnPips / 2) }));
   }
 </script>
@@ -44,45 +49,53 @@
 <div class="module e-pricing">
   <div class="module-header">
     <span>e-Pricing</span>
-    <select bind:value={selectedTier} class="tier-select">
-      {#each TIERS as tier}
-        <option value={tier}>{tier}M</option>
-      {/each}
-    </select>
   </div>
 
   <div class="module-content">
-    <!-- Main price display -->
+    <!-- Main price display (always 1M) -->
     <div class="main-prices">
       <div class="price-btn bid">
-        <span class="big-figure">{getBigFigure(selectedPrices.bid)}</span>
-        <span class="pips">{getPips(selectedPrices.bid)}</span>
-        <span class="size-label">{selectedTier}M</span>
+        <span class="big-figure">{getBigFigure(mainPrices.bid)}</span>
+        <span class="pips">{getPips(mainPrices.bid)}</span>
+        <span class="size-label">1M</span>
         <span class="side-label">Bid</span>
       </div>
 
       <div class="spread-display">
-        <span class="spread-value">{formatSpreadPips(selectedPrices.spread)}</span>
+        <span class="spread-value">{formatSpreadPips(mainPrices.spread)}</span>
       </div>
 
       <div class="price-btn offer">
-        <span class="big-figure">{getBigFigure(selectedPrices.ask)}</span>
-        <span class="pips">{getPips(selectedPrices.ask)}</span>
-        <span class="size-label">{selectedTier}M</span>
+        <span class="big-figure">{getBigFigure(mainPrices.ask)}</span>
+        <span class="pips">{getPips(mainPrices.ask)}</span>
+        <span class="size-label">1M</span>
         <span class="side-label">Offer</span>
+      </div>
+    </div>
+
+    <!-- Base spread controls (affects all tiers) -->
+    <div class="base-spread-controls">
+      <span class="control-label">Base Spread</span>
+      <div class="base-buttons">
+        <button class="spread-btn" on:click={() => adjustBaseSpread(-1)}>−</button>
+        <span class="base-value">+{$ePricingConfig.baseSpreadPips}</span>
+        <button class="spread-btn" on:click={() => adjustBaseSpread(1)}>+</button>
       </div>
     </div>
 
     <!-- Skew controls -->
     <div class="skew-controls">
-      <button class="skew-btn" on:click={skewToMidBid} title="Skew bid to mid">MID</button>
-      <button class="skew-btn" on:click={skewLeft}>←</button>
-      <span class="skew-value">{$ePricingConfig.skewPips >= 0 ? '+' : ''}{$ePricingConfig.skewPips}</span>
-      <button class="skew-btn" on:click={skewRight}>→</button>
-      <button class="skew-btn" on:click={skewToMidAsk} title="Skew offer to mid">MID</button>
+      <span class="control-label">Skew</span>
+      <div class="skew-buttons">
+        <button class="skew-btn" on:click={skewToMidBid} title="Skew bid to mid">MID</button>
+        <button class="skew-btn" on:click={skewLeft}>←</button>
+        <span class="skew-value">{$ePricingConfig.skewPips >= 0 ? '+' : ''}{$ePricingConfig.skewPips}</span>
+        <button class="skew-btn" on:click={skewRight}>→</button>
+        <button class="skew-btn" on:click={skewToMidAsk} title="Skew offer to mid">MID</button>
+      </div>
     </div>
 
-    <!-- Volume ladder with add-on spread controls -->
+    <!-- Volume ladder with tier-specific additional spread controls -->
     <div class="volume-ladder">
       {#each TIERS as tier}
         {@const prices = $eTierPrices[tier]}
@@ -93,11 +106,15 @@
           </span>
           <div class="addon-controls">
             <span class="spread-above">{formatSpreadPips(prices.spread)}</span>
-            <div class="addon-buttons">
-              <button class="addon-btn" on:click={() => adjustAddOn(tier, -1)}>−</button>
-              <span class="addon-value">+{prices.addOnPips}</span>
-              <button class="addon-btn" on:click={() => adjustAddOn(tier, 1)}>+</button>
-            </div>
+            {#if tier === '1'}
+              <span class="addon-value base-indicator">base</span>
+            {:else}
+              <div class="addon-buttons">
+                <button class="addon-btn" on:click={() => adjustAdditional(tier, -1)}>−</button>
+                <span class="addon-value">+{prices.additionalPips}</span>
+                <button class="addon-btn" on:click={() => adjustAdditional(tier, 1)}>+</button>
+              </div>
+            {/if}
           </div>
           <span class="ladder-price offer">
             {getPips(prices.ask)}
@@ -126,19 +143,6 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     border-bottom: 1px solid #3a3a5a;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .tier-select {
-    background: #1a1a2e;
-    border: 1px solid #3a3a5a;
-    color: #ccc;
-    padding: 2px 8px;
-    border-radius: 2px;
-    font-size: 11px;
-    cursor: pointer;
   }
 
   .module-content {
@@ -220,11 +224,65 @@
     color: #666;
   }
 
+  /* Base spread controls */
+  .base-spread-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .control-label {
+    font-size: 10px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .base-buttons {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .spread-btn {
+    background: #2a2a4a;
+    border: 1px solid #3a3a5a;
+    color: #ccc;
+    width: 24px;
+    height: 24px;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .spread-btn:hover {
+    background: #3a3a5a;
+  }
+
+  .base-value {
+    font-family: 'Consolas', monospace;
+    min-width: 32px;
+    text-align: center;
+    font-size: 12px;
+    color: #60a5fa;
+    font-weight: 600;
+  }
+
   /* Skew controls */
   .skew-controls {
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 8px;
+  }
+
+  .skew-buttons {
+    display: flex;
+    align-items: center;
     gap: 4px;
   }
 
@@ -339,5 +397,10 @@
     color: #60a5fa;
     min-width: 24px;
     text-align: center;
+  }
+
+  .addon-value.base-indicator {
+    color: #888;
+    font-style: italic;
   }
 </style>

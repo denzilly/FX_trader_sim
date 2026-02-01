@@ -1,13 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { marketPrice } from '../stores/game';
+  import { marketPrice, priceHistory } from '../stores/game';
 
-  interface PricePoint {
-    time: number;
-    mid: number;
-  }
-
-  let priceHistory: PricePoint[] = [];
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D | null = null;
 
@@ -16,12 +10,16 @@
   // Subscribe to market price updates
   $: {
     if ($marketPrice) {
-      priceHistory = [
-        ...priceHistory.slice(-(MAX_POINTS - 1)),
+      priceHistory.update(history => [
+        ...history.slice(-(MAX_POINTS - 1)),
         { time: $marketPrice.timestamp, mid: $marketPrice.mid }
-      ];
-      draw();
+      ]);
     }
+  }
+
+  // Redraw when history changes
+  $: if ($priceHistory) {
+    draw();
   }
 
   onMount(() => {
@@ -42,7 +40,7 @@
   }
 
   function draw() {
-    if (!ctx || !canvas || priceHistory.length < 2) return;
+    if (!ctx || !canvas || $priceHistory.length < 2) return;
 
     const width = canvas.width;
     const height = canvas.height;
@@ -54,7 +52,7 @@
 
     // Calculate price range (auto-scaling with padding)
     // Minimum range of 20 pips (0.0020) to prevent jarring movements
-    const prices = priceHistory.map(p => p.mid);
+    const prices = $priceHistory.map(p => p.mid);
     const minPrice = Math.min(...prices);
     const maxPrice = Math.max(...prices);
     const actualRange = maxPrice - minPrice;
@@ -92,7 +90,7 @@
     const chartWidth = width - padding.left - padding.right;
     const chartHeight = height - padding.top - padding.bottom;
 
-    priceHistory.forEach((point, i) => {
+    $priceHistory.forEach((point, i) => {
       const x = padding.left + (i / (MAX_POINTS - 1)) * chartWidth;
       const y = padding.top + (1 - (point.mid - paddedMin) / paddedRange) * chartHeight;
 
@@ -106,9 +104,9 @@
     ctx.stroke();
 
     // Draw current price marker and label
-    if (priceHistory.length > 0) {
-      const lastPoint = priceHistory[priceHistory.length - 1];
-      const lastX = padding.left + ((priceHistory.length - 1) / (MAX_POINTS - 1)) * chartWidth;
+    if ($priceHistory.length > 0) {
+      const lastPoint = $priceHistory[$priceHistory.length - 1];
+      const lastX = padding.left + (($priceHistory.length - 1) / (MAX_POINTS - 1)) * chartWidth;
       const lastY = padding.top + (1 - (lastPoint.mid - paddedMin) / paddedRange) * chartHeight;
 
       // Draw dot on the line

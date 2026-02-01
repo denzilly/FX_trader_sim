@@ -15,6 +15,13 @@ import type { NewsItem, ScheduledRelease } from '../simulation/newsEvents';
 // Market mid price (spread-independent)
 export const marketMid = writable<number>(1.0850);
 
+// Price history for chart
+export interface PricePoint {
+  time: number;
+  mid: number;
+}
+export const priceHistory = writable<PricePoint[]>([]);
+
 // Tier spreads (updated by spread engine)
 export const tierSpreads = writable<TierSpreads>({
   '1': 0.00005,   // 0.5 pips
@@ -82,15 +89,16 @@ export const trades = writable<Trade[]>([]);
 // Active trade requests from clients
 export const tradeRequests = writable<TradeRequest[]>([]);
 
-// E-pricing configuration per tier (all values in whole pips)
-// These are ADD-ON spreads on top of the market tier spreads
+// E-pricing configuration (all values in whole pips)
+// baseSpreadPips is the 1M spread and applies to ALL tiers
+// tierAdditionalPips are extra pips on top of base for larger sizes
 export const ePricingConfig = writable({
-  tierAddOnPips: {
-    '1': 1,    // +1 pip add-on for 1M
-    '5': 1,    // +1 pip add-on for 5M
-    '10': 2,   // +2 pips add-on for 10M
-    '50': 3,   // +3 pips add-on for 50M
-  } as Record<'1' | '5' | '10' | '50', number>,
+  baseSpreadPips: 1,    // Base spread (1M tier) - affects all tiers
+  tierAdditionalPips: {
+    '5': 0,    // +0 pips additional for 5M (total = base + 0)
+    '10': 1,   // +1 pip additional for 10M (total = base + 1)
+    '50': 2,   // +2 pips additional for 50M (total = base + 2)
+  } as Record<'5' | '10' | '50', number>,
   skewPips: 0,    // 0 pips skew (positive = skew bid up, negative = skew bid down)
 });
 
@@ -99,25 +107,29 @@ export const eTierPrices = derived(
   [marketMid, tierSpreads, ePricingConfig],
   ([$mid, $spreads, $config]) => {
     const tiers = ['1', '5', '10', '50'] as const;
-    const prices: Record<string, { bid: number; ask: number; spread: number; addOnPips: number }> = {};
+    const prices: Record<string, { bid: number; ask: number; spread: number; addOnPips: number; additionalPips: number }> = {};
     const skewInPrice = $config.skewPips * 0.0001;
 
     for (const tier of tiers) {
-      // Market spread + e-pricing add-on spread
+      // Market spread + base spread + tier-specific additional spread
       const marketSpread = $spreads[tier];
-      const addOnSpread = $config.tierAddOnPips[tier] * 0.0001;
-      const totalSpread = marketSpread + addOnSpread;
+      const baseSpread = $config.baseSpreadPips * 0.0001;
+      const additionalPips = tier === '1' ? 0 : $config.tierAdditionalPips[tier as '5' | '10' | '50'];
+      const additionalSpread = additionalPips * 0.0001;
+      const totalAddOnPips = $config.baseSpreadPips + additionalPips;
+      const totalSpread = marketSpread + baseSpread + additionalSpread;
       const halfSpread = totalSpread / 2;
 
       prices[tier] = {
         bid: $mid - halfSpread + skewInPrice,
         ask: $mid + halfSpread + skewInPrice,
         spread: totalSpread,
-        addOnPips: $config.tierAddOnPips[tier],
+        addOnPips: totalAddOnPips,
+        additionalPips: additionalPips,
       };
     }
 
-    return prices as Record<'1' | '5' | '10' | '50', { bid: number; ask: number; spread: number; addOnPips: number }>;
+    return prices as Record<'1' | '5' | '10' | '50', { bid: number; ask: number; spread: number; addOnPips: number; additionalPips: number }>;
   }
 );
 

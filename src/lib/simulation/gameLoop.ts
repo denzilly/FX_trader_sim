@@ -8,7 +8,9 @@ import { createSpreadEngine } from './spread';
 import { createPositionTracker, type Trade } from './position';
 import { createVoiceRfqEngine, type VoiceRfq } from './voiceRfq';
 import { createElectronicRfqEngine, type ElectronicRfq } from './electronicRfq';
-import { marketMid, tierSpreads, tierPrices, volatilityFactor, position, pnl, trades, chatMessages, activeVoiceRfqs, electronicRfqs, eTierPrices, marketImpact, twapState, gameTime } from '../stores/game';
+import { createNewsEventsEngine } from './newsEvents';
+import { marketMid, tierSpreads, tierPrices, volatilityFactor, position, pnl, trades, chatMessages, activeVoiceRfqs, electronicRfqs, eTierPrices, marketImpact, twapState, gameTime, newsHistory, upcomingRelease, priceHistory } from '../stores/game';
+import { settings } from '../stores/settings';
 import { get } from 'svelte/store';
 
 const PRICE_TICK_INTERVAL_MS = 100;
@@ -17,6 +19,7 @@ const RFQ_TICK_INTERVAL_MS = 500; // Voice RFQ engine tick
 const ELECTRONIC_RFQ_TICK_INTERVAL_MS = 200; // Electronic RFQ tick (faster for live prices)
 const TWAP_TICK_INTERVAL_MS = 10000; // TWAP executes every 10 seconds
 const CLOCK_TICK_INTERVAL_MS = 1000; // Clock ticks every 1 second (= 1 game minute)
+const NEWS_TICK_INTERVAL_MS = 1000; // News checks once per game minute (synced with clock)
 
 let priceIntervalId: ReturnType<typeof setInterval> | null = null;
 let spreadIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -24,15 +27,83 @@ let rfqIntervalId: ReturnType<typeof setInterval> | null = null;
 let electronicRfqIntervalId: ReturnType<typeof setInterval> | null = null;
 let twapIntervalId: ReturnType<typeof setInterval> | null = null;
 let clockIntervalId: ReturnType<typeof setInterval> | null = null;
+let newsIntervalId: ReturnType<typeof setInterval> | null = null;
 
 // Game clock state - starts at 7:00 AM
 let gameClockMinutes = 7 * 60; // 7:00 AM in minutes from midnight
 
-const marketEngine = createMarketEngine();
-const spreadEngine = createSpreadEngine();
-const positionTracker = createPositionTracker();
-const voiceRfqEngine = createVoiceRfqEngine();
-const electronicRfqEngine = createElectronicRfqEngine();
+// Engines - recreated on restart to pick up new settings
+let marketEngine = createMarketEngine();
+let spreadEngine = createSpreadEngine();
+let positionTracker = createPositionTracker();
+let voiceRfqEngine = createVoiceRfqEngine();
+let electronicRfqEngine = createElectronicRfqEngine();
+let newsEventsEngine = createNewsEventsEngine();
+
+// Get current settings snapshot
+function getSettings() {
+  return get(settings);
+}
+
+// Recreate engines with current settings
+function recreateEngines() {
+  const s = getSettings();
+
+  marketEngine = createMarketEngine(
+    {
+      initialMid: s.market.initialMid,
+      volatility: s.market.volatility,
+      drift: s.market.drift,
+      baseSpread: s.market.baseSpread,
+    },
+    {
+      halfLifeMs: s.impact.halfLifeMs,
+      maxImpactPips: s.impact.maxImpactPips,
+      sizeScaleFactor: s.impact.sizeScaleFactor,
+      burstWindowMs: s.impact.burstWindowMs,
+      burstMultiplierMax: s.impact.burstMultiplierMax,
+    }
+  );
+
+  spreadEngine = createSpreadEngine();
+  positionTracker = createPositionTracker();
+  voiceRfqEngine = createVoiceRfqEngine();
+  electronicRfqEngine = createElectronicRfqEngine();
+  newsEventsEngine = createNewsEventsEngine({
+    newsChancePerMinute: s.news.newsChancePerMinute,
+    minNewsBetweenMinutes: s.news.minNewsBetweenMinutes,
+    releasesPerDay: 1,
+    releaseDelayMin: s.news.releaseDelayMin,
+    releaseDelayMax: s.news.releaseDelayMax,
+    newsEnabled: s.news.newsEnabled,
+    releasesEnabled: s.news.releasesEnabled,
+  });
+}
+
+// Reset game state stores
+function resetGameState() {
+  marketMid.set(getSettings().market.initialMid);
+  position.set({ amount: 0, averagePrice: 0, currency: 'EUR' });
+  pnl.set({ realized: 0, unrealized: 0, total: 0 });
+  trades.set([]);
+  chatMessages.set([]);
+  activeVoiceRfqs.set([]);
+  electronicRfqs.set([]);
+  newsHistory.set([]);
+  upcomingRelease.set(null);
+  marketImpact.set(0);
+  volatilityFactor.set(1);
+  twapState.set({ active: false, side: 'buy', totalSize: 0, sizePerInterval: 0, filledSize: 0, startTime: 0 });
+  priceHistory.set([]);
+}
+
+// Restart game with current settings
+export function restartGame() {
+  stopGame();
+  resetGameState();
+  recreateEngines();
+  startGame();
+}
 
 export function startGame() {
   if (priceIntervalId !== null) {
@@ -99,6 +170,65 @@ export function startGame() {
     updateGameTime();
   }, CLOCK_TICK_INTERVAL_MS);
 
+  // News events setup
+  newsEventsEngine.setOnMarketImpact((immediatePips, driftPips, driftMinutes) => {
+    // Delay the market impact by 3-7 seconds (simulates market reaction time)
+    const delayMs = 3000 + Math.random() * 4000;
+
+    setTimeout(() => {
+      // Apply immediate shock (convert pips to price)
+      const immediateImpact = immediatePips * 0.0001;
+      marketEngine.applyImpact(immediateImpact);
+
+      // Apply drift over time (simplified: apply as additional impact spread over intervals)
+      if (driftPips !== 0 && driftMinutes > 0) {
+        const driftIntervals = Math.ceil(driftMinutes * (1000 / PRICE_TICK_INTERVAL_MS));
+        const driftPerTick = (driftPips * 0.0001) / driftIntervals;
+        let driftCount = 0;
+        const driftInterval = setInterval(() => {
+          marketEngine.applyImpact(driftPerTick);
+          driftCount++;
+          if (driftCount >= driftIntervals) {
+            clearInterval(driftInterval);
+          }
+        }, PRICE_TICK_INTERVAL_MS);
+      }
+    }, delayMs);
+  });
+
+  newsEventsEngine.setOnVolatilityBoost((boost) => {
+    // Temporarily increase volatility
+    const currentVol = spreadEngine.getVolatilityFactor();
+    const boostedVol = Math.min(2.0, currentVol + boost);
+    spreadEngine.setVolatilityFactor(boostedVol);
+    volatilityFactor.set(boostedVol);
+
+    // Decay back to normal over 30 seconds
+    const decayInterval = setInterval(() => {
+      const vol = spreadEngine.getVolatilityFactor();
+      const newVol = Math.max(1.0, vol - 0.05);
+      spreadEngine.setVolatilityFactor(newVol);
+      volatilityFactor.set(newVol);
+      if (newVol <= 1.0) {
+        clearInterval(decayInterval);
+      }
+    }, 1000);
+  });
+
+  newsEventsEngine.setOnNews((item) => {
+    newsHistory.update(history => [item, ...history].slice(0, 50)); // Keep last 50 items
+  });
+
+  // Initialize news engine with current game time
+  newsEventsEngine.reset(gameClockMinutes);
+  upcomingRelease.set(newsEventsEngine.getUpcomingRelease());
+
+  // News tick - synced with clock
+  newsIntervalId = setInterval(() => {
+    newsEventsEngine.tick(gameClockMinutes);
+    upcomingRelease.set(newsEventsEngine.getUpcomingRelease());
+  }, NEWS_TICK_INTERVAL_MS);
+
   // Initial tick
   const initialPrice = marketEngine.tick();
   marketMid.set(initialPrice.mid);
@@ -139,6 +269,10 @@ export function stopGame() {
     clearInterval(clockIntervalId);
     clockIntervalId = null;
   }
+  if (newsIntervalId !== null) {
+    clearInterval(newsIntervalId);
+    newsIntervalId = null;
+  }
 }
 
 export function isGameRunning(): boolean {
@@ -166,6 +300,13 @@ function updatePnL(currentMid: number) {
   pnl.set(currentPnL);
 }
 
+// Record market impact if enabled
+function recordImpactIfEnabled(params: { size: number; side: 'buy' | 'sell'; banksAsked?: number }) {
+  if (getSettings().impact.enabled) {
+    marketEngine.recordImpact(params);
+  }
+}
+
 // Execute a hedge trade
 export function executeHedgeTrade(side: 'buy' | 'sell', size: number, price: number): Trade {
   const trade = positionTracker.executeTrade({
@@ -177,11 +318,7 @@ export function executeHedgeTrade(side: 'buy' | 'sell', size: number, price: num
   });
 
   // Record market impact (hedge trades have full impact, no banksAsked)
-  marketEngine.recordImpact({
-    size,
-    side,
-    // banksAsked undefined = full impact (we're hitting the market)
-  });
+  recordImpactIfEnabled({ size, side });
 
   // Update stores
   position.set(positionTracker.getPosition());
@@ -210,7 +347,7 @@ function executeVoiceTrade(rfq: VoiceRfq): Trade {
 
   // Record market impact (based on how many banks client asked)
   // Client side determines market impact direction
-  marketEngine.recordImpact({
+  recordImpactIfEnabled({
     size: rfq.size,
     side: rfq.side, // Client's side - if client buys, market goes up
     banksAsked: rfq.banksAsked,
@@ -297,7 +434,7 @@ function executeElectronicTrade(rfq: ElectronicRfq, price: number): Trade {
 
   // Record market impact (based on how many banks client asked)
   // Client side determines market impact direction
-  marketEngine.recordImpact({
+  recordImpactIfEnabled({
     size: rfq.size,
     side: rfq.side, // Client's side - if client buys, market goes up
     banksAsked: rfq.banksAsked,
@@ -352,10 +489,7 @@ function executeTwapSlice() {
   });
 
   // Record market impact
-  marketEngine.recordImpact({
-    size: sliceSize,
-    side: state.side,
-  });
+  recordImpactIfEnabled({ size: sliceSize, side: state.side });
 
   // Update stores
   position.set(positionTracker.getPosition());
