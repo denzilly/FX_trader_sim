@@ -4,14 +4,15 @@
  */
 
 import { createMarketEngine } from './market';
-import { createSpreadEngine } from './spread';
+import { createSpreadEngine, getSessionForHour } from './spread';
 import { createPositionTracker, type Trade } from './position';
 import { createVoiceRfqEngine, type VoiceRfq } from './voiceRfq';
 import { createElectronicRfqEngine, type ElectronicRfq } from './electronicRfq';
 import { createNewsEventsEngine } from './newsEvents';
-import { marketMid, tierSpreads, tierPrices, volatilityFactor, position, pnl, trades, chatMessages, activeVoiceRfqs, electronicRfqs, eTierPrices, marketImpact, twapState, gameTime, newsHistory, upcomingRelease, priceHistory } from '../stores/game';
+import { marketMid, tierSpreads, tierPrices, volatilityFactor, position, pnl, trades, chatMessages, activeVoiceRfqs, electronicRfqs, eTierPrices, marketImpact, twapState, gameTime, newsHistory, upcomingRelease, priceHistory, currentSession } from '../stores/game';
 import { settings } from '../stores/settings';
 import { get } from 'svelte/store';
+import { playNewsSound, playVoiceRfqSound, playTradeSound, preloadSounds } from '../utils/sound';
 
 const PRICE_TICK_INTERVAL_MS = 100;
 const SPREAD_TICK_INTERVAL_MS = 500; // Spreads update slower than price
@@ -110,6 +111,9 @@ export function startGame() {
     return; // Already running
   }
 
+  // Preload sound effects
+  preloadSounds();
+
   // Price tick - fast (100ms)
   priceIntervalId = setInterval(() => {
     const price = marketEngine.tick();
@@ -141,6 +145,11 @@ export function startGame() {
     }
     activeVoiceRfqs.set(voiceRfqEngine.getActiveRfqs());
   }, RFQ_TICK_INTERVAL_MS);
+
+  // Set up voice RFQ new request callback (plays horn sound)
+  voiceRfqEngine.setOnNewRfq(() => {
+    playVoiceRfqSound();
+  });
 
   // Set up voice trade execution callback
   voiceRfqEngine.setOnTradeExecuted((rfq: VoiceRfq) => {
@@ -217,6 +226,7 @@ export function startGame() {
 
   newsEventsEngine.setOnNews((item) => {
     newsHistory.update(history => [item, ...history].slice(0, 50)); // Keep last 50 items
+    playNewsSound();
   });
 
   // Initialize news engine with current game time
@@ -242,6 +252,11 @@ function updateGameTime() {
   const date = new Date();
   date.setHours(hours, minutes, 0, 0);
   gameTime.set(date);
+
+  // Update trading session based on current hour
+  const session = getSessionForHour(hours);
+  currentSession.set(session);
+  spreadEngine.setSessionMultiplier(session.spreadMultiplier);
 }
 
 export function stopGame() {
@@ -357,6 +372,9 @@ function executeVoiceTrade(rfq: VoiceRfq): Trade {
   position.set(positionTracker.getPosition());
   trades.update(t => [...t, trade]);
 
+  // Play trade sound for client trades
+  playTradeSound();
+
   // Update PnL immediately
   const currentMid = get(marketMid);
   updatePnL(currentMid);
@@ -443,6 +461,9 @@ function executeElectronicTrade(rfq: ElectronicRfq, price: number): Trade {
   // Update stores
   position.set(positionTracker.getPosition());
   trades.update(t => [...t, trade]);
+
+  // Play trade sound for client trades
+  playTradeSound();
 
   // Update PnL immediately
   const currentMid = get(marketMid);

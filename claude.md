@@ -51,7 +51,7 @@ src/
 
 ### Core Systems
 1. **Market Price Engine** (`simulation/market.ts`) - Simulates EUR/USD mid price (random walk with market impact)
-2. **Spread Engine** (`simulation/spread.ts`) - Manages tiered spreads (1M, 5M, 10M, 50M) with volatility effects
+2. **Spread Engine** (`simulation/spread.ts`) - Manages tiered spreads (1M, 5M, 10M, 50M) with volatility and session effects
 3. **Position Tracker** (`simulation/position.ts`) - Tracks position, exposure, realized/unrealized PnL
 4. **Voice RFQ Engine** (`simulation/voiceRfq.ts`) - Manages chat-based RFQs from salespeople
 5. **Electronic RFQ Engine** (`simulation/electronicRfq.ts`) - Manages automated RFQs using e-pricing stream
@@ -76,6 +76,7 @@ Central state in `stores/game.ts` using Svelte stores:
 - `twapState` - TWAP algo execution state
 - `newsHistory` - News items that have occurred
 - `upcomingRelease` - Next scheduled economic release
+- `currentSession` - Current trading session (TK, LDN, LDN/NY, NY)
 
 Settings in `stores/settings.ts`:
 - `market` - Initial mid, volatility, drift, base spread
@@ -117,6 +118,15 @@ Trading activity moves the market:
 - Burst detection: rapid trading amplifies impact
 - Client "banks asked" reduces impact (competition)
 
+## Trading Sessions
+Spreads vary by time of day based on trading session:
+- **TK (Tokyo)**: 10pm - 8am - Widest spreads (1.8x multiplier)
+- **LDN (London)**: 8am - 1pm - Medium spreads (1.2x multiplier)
+- **LDN/NY (Overlap)**: 1pm - 5pm - Tightest spreads (1.0x multiplier)
+- **NY (New York)**: 5pm - 10pm - Medium-wide spreads (1.4x multiplier)
+
+Session is displayed in the header with flag emoji indicators.
+
 ## News & Events System
 - Random news events during market hours (7am-5pm game time)
 - Scheduled economic releases with actual vs expected values
@@ -141,7 +151,9 @@ Full gameplay implemented:
 - Position and PnL tracking in header
 - Market impact from all trading activity
 - News & economic data releases affecting prices
+- Trading session-based spread adjustments (TK, LDN, LDN/NY, NY)
 - Settings panel for simulation customization
+- Sound effects for news, RFQs, and trades
 - Game restart with current settings
 
 ## Sample Clients

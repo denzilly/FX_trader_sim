@@ -26,14 +26,14 @@ There is only a single asset class available: EUR/USD.
 
 The mid-market price follows a random walk with drift, influenced by:
 - [x] Random walk with mean reversion
-- [ ] Market impact from trading (large trades move the market)
-- [ ] Market impact from client quotes (clients asking many banks = more impact)
-- [ ] Incoming news events (geopolitical, economic data releases)
+- [x] Market impact from trading (large trades move the market)
+- [x] Market impact from client quotes (clients asking many banks = reduced impact)
+- [x] Incoming news events (geopolitical, economic data releases)
 
 Market spreads move depending on:
 - [x] Tiered pricing (1M, 5M, 10M, 50M with different spreads)
 - [x] Volatility factor (spreads widen with volatility)
-- [ ] Time of day (tightest during London hours)
+- [x] Time of day / Trading sessions (TK, LDN, LDN/NY, NY with different spread multipliers)
 
 ## Pricing and Trading [IMPLEMENTED]
 
@@ -47,6 +47,7 @@ Two ways to accumulate a risk position:
 
 2. **Aggressing the market:**
    - [x] Buy/sell EURUSD via hedging panel to create or reduce risk position
+   - [x] TWAP algo for executing large orders over time
 
 ## Clients [IMPLEMENTED]
 
@@ -59,7 +60,7 @@ Clients demonstrate behaviour according to parameters:
 | Size | Size range for requests (e.g., 10-30M) | Yes |
 | Direction | Always buyer, always seller, or either | Yes |
 | Frequency | How often they ask for prices | Yes |
-| Banks Asked | Number of banks being asked (affects market impact) | Defined, not used |
+| Banks Asked | Number of banks being asked (affects market impact) | Yes |
 
 ### Sample Clients
 
@@ -71,7 +72,7 @@ Clients demonstrate behaviour according to parameters:
 
 # GUI Modules
 
-The game consists of six GUI modules arranged in a 3x2 cockpit grid.
+The game consists of seven GUI modules arranged in a cockpit grid.
 
 ## Hedging [IMPLEMENTED]
 
@@ -80,33 +81,33 @@ Shows market prices at which the trader can hedge their position.
 - [x] Size ladder for 1M, 5M, 10M, 50M trades
 - [x] Live ticking prices from market engine
 - [x] Click to execute hedge trades
+- [x] TWAP algo trading (configurable side, size, and pace)
 
 ## E-Pricing [IMPLEMENTED]
 
 Allows trader to configure electronic pricing.
-- [x] Shows current e-price being streamed (based on market + spread + skew)
-- [x] WIDEN button: Increase spread by 1 pip per side
-- [x] TIGHTEN button: Decrease spread by 1 pip per side
+- [x] Shows current e-price being streamed (always 1M tier)
+- [x] Base spread controls: -/+ buttons to widen/tighten (affects all tiers)
 - [x] Skew controls: Shift bid/ask left or right by 1 pip
-- [x] Current skew display
-- [ ] Volume ladder showing prices for 1M, 5M, 10M, 50M
-- [ ] Skew to MID option (offer or bid matches market mid)
+- [x] Skew to MID buttons (bid or offer matches market mid)
+- [x] Volume ladder showing prices for 1M, 5M, 10M, 50M
+- [x] Per-tier additional spread controls (5M, 10M, 50M)
 
 ## Chart [IMPLEMENTED]
 
 - [x] Live EUR/USD price chart
-- [x] 60 seconds of price history before scrolling
+- [x] 180 seconds of price history before scrolling
 - [x] Current price indicator with label
+- [x] Chart resets on game restart
 - [ ] Trade markers showing where trades executed
 
 ## Trade Blotter [IMPLEMENTED]
 
 Shows all executed trades.
 - [x] Columns: Time, Client, Side, Size, Price, Type
-- [x] Trade types: hedge, voice, electronic
+- [x] Trade types: hedge, voice, electronic, algo
 - [x] Newest trades at top
 - [x] Scrollable history
-- [ ] Active electronic requests with reject button (moved to RFQ Blotter)
 - [ ] Filterable columns
 
 ## RFQ Blotter [IMPLEMENTED]
@@ -128,17 +129,38 @@ Used for voice RFQ quoting.
 - [x] MINE!/YOURS! responses when trades execute
 - [x] Pips shown in done messages: "MINE at 55!"
 
+## News & Events [IMPLEMENTED]
+
+- [x] News panel showing recent headlines
+- [x] Upcoming economic release display with expected values
+- [x] Random news events during market hours (7am-5pm)
+- [x] Scheduled economic data releases (NFP, CPI, PMI, etc.)
+- [x] News causes market price jumps and sustained drift
+- [x] Volatility boost from news affects spreads
+- [x] Audio gong alert for news events
+
 ## Risk & PnL [IMPLEMENTED - in header]
 
 - [x] Current position display (LONG/SHORT/FLAT with size)
 - [x] Current PnL (color-coded positive/negative)
+- [x] Market impact indicator
 - [ ] Separate detailed panel with realized/unrealized breakdown
 
-## News [NOT IMPLEMENTED]
+## Settings [IMPLEMENTED]
 
-- [ ] Bloomberg HOT style line-by-line news feed
-- [ ] Audio alerts for incoming news
-- [ ] News events that move market prices
+- [x] Accessible via gear icon in header
+- [x] News & Events: Toggle news/releases on/off, adjust frequency
+- [x] Market Simulation: Initial price, volatility, drift, base spread
+- [x] Market Impact: Enable/disable, half-life, max impact, burst settings
+- [x] Sound Effects: Enable/disable, volume control
+- [x] Apply & Restart button
+
+## Sound Effects [IMPLEMENTED]
+
+- [x] Gong sound for news and economic releases
+- [x] Horn sound for new voice RFQ requests
+- [x] Beep sound for client trade execution (voice/electronic)
+- [x] Sound settings in Settings panel
 
 ---
 
@@ -172,8 +194,17 @@ Used for voice RFQ quoting.
 - [ ] Auto-quote limit (only auto-quote up to certain size)
 - [ ] Penalty for not providing prices (worse than rejection)
 - [ ] Client blocking for problematic behavior (machine-gunning)
-- [ ] Market impact from player trades
-- [ ] Market impact from client multi-bank quotes
-- [ ] Scheduled economic data releases
-- [ ] Time-of-day spread effects
+- [x] Time-of-day spread effects (implemented via trading sessions)
 - [ ] End-of-day scoring and leaderboards
+
+---
+
+# Bugs (Fixed)
+
+- [x] Big figure does not update in pricing and hedging tiles (fixed: truncate instead of round)
+
+---
+
+# Additional Desired Changes
+
+- [x] Improve the UI alignment in the e-pricing area (skew and spread controls)

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { startGame, stopGame } from './lib/simulation/gameLoop';
-  import { position, pnl, marketImpact, gameTime } from './lib/stores/game';
+  import { position, pnl, marketImpact, gameTime, currentSession } from './lib/stores/game';
   import { formatCurrency } from './lib/utils/format';
   import Hedging from './lib/components/Hedging.svelte';
   import EPricing from './lib/components/EPricing.svelte';
@@ -30,6 +30,14 @@
     minute: '2-digit',
     second: '2-digit'
   });
+
+  // Session flag emojis
+  $: sessionFlags = {
+    'TK': '🇯🇵',
+    'LDN': '🇬🇧',
+    'LDN/NY': '🇬🇧🇺🇸',
+    'NY': '🇺🇸',
+  }[$currentSession.name] || '🌐';
 </script>
 
 <main class="cockpit">
@@ -60,7 +68,13 @@
       </div>
     </div>
 
-    <div class="clock">{formattedTime}</div>
+    <div class="clock-session">
+      <div class="clock">{formattedTime}</div>
+      <div class="session-indicator">
+        <span class="session-flags">{sessionFlags}</span>
+        <span class="session-name">{$currentSession.name}</span>
+      </div>
+    </div>
     <button class="settings-btn" on:click={() => settingsOpen = true} title="Settings">
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="3"></circle>
@@ -196,11 +210,38 @@
     color: #f87171;
   }
 
+  .clock-session {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: 16px;
+  }
+
   .clock {
     font-family: 'Consolas', monospace;
     font-size: 14px;
     color: #888;
-    margin-left: 16px;
+  }
+
+  .session-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #2a2a4a;
+    padding: 4px 10px;
+    border-radius: 4px;
+  }
+
+  .session-flags {
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  .session-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: #60a5fa;
+    letter-spacing: 0.5px;
   }
 
   .settings-btn {

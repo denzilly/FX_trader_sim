@@ -40,9 +40,11 @@ export function formatCurrency(amount: number): string {
 /**
  * Extract big figure from price (first 2 decimal places)
  * e.g., 1.08567 -> "1.08"
+ * Note: Uses floor to truncate (not round) to match pips display
  */
 export function getBigFigure(price: number): string {
-  return price.toFixed(2);
+  const truncated = Math.floor(price * 100) / 100;
+  return truncated.toFixed(2);
 }
 
 /**

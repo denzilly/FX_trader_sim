@@ -33,11 +33,18 @@ export interface NewsSettings {
   releaseDelayMax: number;        // Max minutes until next release
 }
 
+// Sound settings
+export interface SoundSettings {
+  enabled: boolean;
+  volume: number;                 // 0.0 to 1.0
+}
+
 // Combined settings
 export interface SimulationSettings {
   market: MarketSettings;
   impact: ImpactSettings;
   news: NewsSettings;
+  sound: SoundSettings;
 }
 
 // Default values
@@ -64,6 +71,10 @@ const DEFAULT_SETTINGS: SimulationSettings = {
     releaseDelayMin: 60,
     releaseDelayMax: 120,
   },
+  sound: {
+    enabled: true,
+    volume: 0.5,
+  },
 };
 
 // Create the store
@@ -86,6 +97,9 @@ function createSettingsStore() {
     updateNews: (changes: Partial<NewsSettings>) => {
       update(s => ({ ...s, news: { ...s.news, ...changes } }));
     },
+    updateSound: (changes: Partial<SoundSettings>) => {
+      update(s => ({ ...s, sound: { ...s.sound, ...changes } }));
+    },
   };
 }
 
@@ -95,3 +109,4 @@ export const settings = createSettingsStore();
 export const marketSettings = derived(settings, $s => $s.market);
 export const impactSettings = derived(settings, $s => $s.impact);
 export const newsSettings = derived(settings, $s => $s.news);
+export const soundSettings = derived(settings, $s => $s.sound);

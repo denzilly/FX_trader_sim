@@ -117,6 +117,19 @@
                 <input type="number" bind:value={$settings.impact.burstMultiplierMax} min="1" max="10" step="0.5" />
               </label>
             </section>
+
+            <!-- Sound Section -->
+            <section class="settings-section">
+              <h3>Sound Effects</h3>
+              <label class="row">
+                <span>Enable Sounds</span>
+                <input type="checkbox" bind:checked={$settings.sound.enabled} />
+              </label>
+              <label class="row">
+                <span>Volume</span>
+                <input type="range" bind:value={$settings.sound.volume} min="0" max="1" step="0.1" class="volume-slider" />
+              </label>
+            </section>
           </div>
         </div>
       </div>
@@ -245,6 +258,13 @@
   .row input[type="number"]:focus {
     outline: none;
     border-color: #60a5fa;
+  }
+
+  .row input[type="range"].volume-slider {
+    width: 90px;
+    height: 6px;
+    cursor: pointer;
+    accent-color: #60a5fa;
   }
 
   .settings-footer {

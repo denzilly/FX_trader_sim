@@ -75,21 +75,25 @@
 
     <!-- Base spread controls (affects all tiers) -->
     <div class="base-spread-controls">
-      <span class="control-label">Base Spread</span>
-      <div class="base-buttons">
+      <div class="control-left">
+        <span class="control-label">Base Spread</span>
         <button class="spread-btn" on:click={() => adjustBaseSpread(-1)}>−</button>
-        <span class="base-value">+{$ePricingConfig.baseSpreadPips}</span>
+      </div>
+      <span class="base-value">+{$ePricingConfig.baseSpreadPips}</span>
+      <div class="control-right">
         <button class="spread-btn" on:click={() => adjustBaseSpread(1)}>+</button>
       </div>
     </div>
 
     <!-- Skew controls -->
     <div class="skew-controls">
-      <span class="control-label">Skew</span>
-      <div class="skew-buttons">
+      <div class="control-left">
+        <span class="control-label">Skew</span>
         <button class="skew-btn" on:click={skewToMidBid} title="Skew bid to mid">MID</button>
         <button class="skew-btn" on:click={skewLeft}>←</button>
-        <span class="skew-value">{$ePricingConfig.skewPips >= 0 ? '+' : ''}{$ePricingConfig.skewPips}</span>
+      </div>
+      <span class="skew-value">{$ePricingConfig.skewPips >= 0 ? '+' : ''}{$ePricingConfig.skewPips}</span>
+      <div class="control-right">
         <button class="skew-btn" on:click={skewRight}>→</button>
         <button class="skew-btn" on:click={skewToMidAsk} title="Skew offer to mid">MID</button>
       </div>
@@ -105,15 +109,15 @@
             {getPips(prices.bid)}
           </span>
           <div class="addon-controls">
-            <span class="spread-above">{formatSpreadPips(prices.spread)}</span>
             {#if tier === '1'}
-              <span class="addon-value base-indicator">base</span>
+              <span class="spread-center">{formatSpreadPips(prices.spread)}</span>
             {:else}
-              <div class="addon-buttons">
-                <button class="addon-btn" on:click={() => adjustAdditional(tier, -1)}>−</button>
+              <button class="addon-btn" on:click={() => adjustAdditional(tier, -1)}>−</button>
+              <div class="addon-center">
+                <span class="spread-center">{formatSpreadPips(prices.spread)}</span>
                 <span class="addon-value">+{prices.additionalPips}</span>
-                <button class="addon-btn" on:click={() => adjustAdditional(tier, 1)}>+</button>
               </div>
+              <button class="addon-btn" on:click={() => adjustAdditional(tier, 1)}>+</button>
             {/if}
           </div>
           <span class="ladder-price offer">
@@ -226,9 +230,23 @@
 
   /* Base spread controls */
   .base-spread-controls {
+    display: grid;
+    grid-template-columns: 1fr 40px 1fr;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .control-left {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .control-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
     gap: 8px;
   }
 
@@ -237,12 +255,6 @@
     color: #888;
     text-transform: uppercase;
     letter-spacing: 0.3px;
-  }
-
-  .base-buttons {
-    display: flex;
-    align-items: center;
-    gap: 4px;
   }
 
   .spread-btn {
@@ -265,7 +277,6 @@
 
   .base-value {
     font-family: 'Consolas', monospace;
-    min-width: 32px;
     text-align: center;
     font-size: 12px;
     color: #60a5fa;
@@ -274,16 +285,10 @@
 
   /* Skew controls */
   .skew-controls {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-  }
-
-  .skew-buttons {
-    display: flex;
-    align-items: center;
+    display: grid;
+    grid-template-columns: 1fr 40px 1fr;
     gap: 4px;
+    align-items: center;
   }
 
   .skew-btn {
@@ -302,7 +307,6 @@
 
   .skew-value {
     font-family: 'Consolas', monospace;
-    min-width: 32px;
     text-align: center;
     font-size: 11px;
     color: #888;
@@ -352,23 +356,25 @@
 
   .addon-controls {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 1px;
+    gap: 4px;
   }
 
-  .spread-above {
+  .addon-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0px;
+    min-width: 24px;
+  }
+
+  .spread-center {
     font-size: 10px;
     color: #888;
     font-family: 'Consolas', monospace;
-  }
-
-  .addon-buttons {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
+    line-height: 1.2;
   }
 
   .addon-btn {
@@ -395,12 +401,7 @@
     font-family: 'Consolas', monospace;
     font-size: 10px;
     color: #60a5fa;
-    min-width: 24px;
     text-align: center;
-  }
-
-  .addon-value.base-indicator {
-    color: #888;
-    font-style: italic;
+    line-height: 1.2;
   }
 </style>

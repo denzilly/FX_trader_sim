@@ -7,7 +7,7 @@ import { writable, derived } from 'svelte/store';
 import type { MarketPrice } from '../simulation/market';
 import type { Position, PnL, Trade } from '../simulation/position';
 import type { TradeRequest } from '../simulation/client';
-import type { TierSpreads } from '../simulation/spread';
+import type { TierSpreads, SessionInfo } from '../simulation/spread';
 import type { ChatMessage, VoiceRfq } from '../simulation/voiceRfq';
 import type { ElectronicRfq } from '../simulation/electronicRfq';
 import type { NewsItem, ScheduledRelease } from '../simulation/newsEvents';
@@ -148,6 +148,13 @@ export const ePrices = derived(
 // Game clock
 export const gameTime = writable<Date>(new Date());
 export const isRunning = writable(false);
+
+// Current trading session
+export const currentSession = writable<SessionInfo>({
+  name: 'LDN',
+  label: 'London',
+  spreadMultiplier: 1.2,
+});
 
 // Voice RFQ chat messages
 export const chatMessages = writable<ChatMessage[]>([]);
