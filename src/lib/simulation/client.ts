@@ -149,7 +149,7 @@ export const SAMPLE_CLIENTS: Client[] = [
     name: 'Rapid Arb Systems',
     competitiveness: 0.2,
     patienceMin: 2,
-    patienceMax: 5,
+    patienceMax: 8,
     sizeMin: 5,
     sizeMax: 15,
     direction: 'both',

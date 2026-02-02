@@ -272,7 +272,7 @@ export function createVoiceRfqEngine(config: VoiceRfqConfig = DEFAULT_CONFIG) {
     rfq.playerQuote = price;
     rfq.status = 'quoted';
 
-    // Keep original decision time - client won't wait longer just because you updated the price
+    // Keep original decision time - client decides when patience timer expires
 
     const priceStr = price.toFixed(4);
     const message: ChatMessage = {

@@ -70,22 +70,22 @@ export interface SpreadConfig {
 }
 
 const DEFAULT_CONFIG: SpreadConfig = {
-  baseSpreadMin: 0,                    // 0 pips
-  baseSpreadMax: 0.0001,               // 1 pip
-  baseSpreadMean: 0.00005,             // 0.5 pips
-  spreadVolatility: 0.00001,           // 0.1 pip fluctuation per tick
+  baseSpreadMin: 0.00005,              // 0.5 pips
+  baseSpreadMax: 0.0002,               // 2 pips
+  baseSpreadMean: 0.0001,              // 1 pip
+  spreadVolatility: 0.00002,           // 0.2 pip fluctuation per tick
   meanReversionSpeed: 0.05,            // Slow mean reversion
   tierAdditions: {
     '1': 0,
-    '5': 0.00003,                      // +0.3 pips
-    '10': 0.00006,                     // +0.6 pips
-    '50': 0.00012,                     // +1.2 pips
+    '5': 0.00005,                      // +0.5 pips
+    '10': 0.0001,                      // +1.0 pips
+    '50': 0.0002,                      // +2.0 pips
   },
   tierMinimums: {
-    '1': 0,                            // 0 pips minimum
-    '5': 0.00005,                      // 0.5 pips minimum
-    '10': 0.0001,                      // 1.0 pips minimum
-    '50': 0.00015,                     // 1.5 pips minimum
+    '1': 0.00005,                      // 0.5 pips minimum
+    '5': 0.0001,                       // 1.0 pips minimum
+    '10': 0.00015,                     // 1.5 pips minimum
+    '50': 0.00025,                     // 2.5 pips minimum
   },
 };
 

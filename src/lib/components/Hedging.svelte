@@ -358,7 +358,7 @@
   }
 
   .twap-input {
-    width: 50px;
+    width: 70px;
     text-align: right;
   }
 

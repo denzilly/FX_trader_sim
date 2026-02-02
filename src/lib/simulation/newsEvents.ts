@@ -332,7 +332,7 @@ export interface NewsEventsConfig {
 }
 
 const DEFAULT_CONFIG: NewsEventsConfig = {
-  newsChancePerMinute: 0.03,        // ~3% chance per game minute
+  newsChancePerMinute: 0.01,        // ~3% chance per game minute
   minNewsBetweenMinutes: 60,        // At least 60 game minutes between news
   releasesPerDay: 1,                // 1 economic release at a time (always one upcoming)
   releaseDelayMin: 60,
@@ -354,6 +354,7 @@ export function createNewsEventsEngine(config: NewsEventsConfig = DEFAULT_CONFIG
   let newsHistory: NewsItem[] = [];
   let lastNewsMinute = -999;
   let lastTickMinute = -1;
+  let startTime = Date.now(); // Track when engine started for grace period
 
   // Callbacks
   let onNews: ((item: NewsItem) => void) | null = null;
@@ -420,8 +421,10 @@ export function createNewsEventsEngine(config: NewsEventsConfig = DEFAULT_CONFIG
     if (config.newsEnabled !== false) {
       const hourOfDay = Math.floor(gameMinutes / 60) % 24;
       const isMarketHours = hourOfDay >= 7 && hourOfDay <= 17;
+      const elapsedSeconds = (Date.now() - startTime) / 1000;
+      const pastGracePeriod = elapsedSeconds >= 60; // No news in first 60 seconds
 
-      if (isMarketHours && gameMinutes - lastNewsMinute >= config.minNewsBetweenMinutes) {
+      if (pastGracePeriod && isMarketHours && gameMinutes - lastNewsMinute >= config.minNewsBetweenMinutes) {
         if (Math.random() < config.newsChancePerMinute) {
           const item = generateRandomNews(gameMinutes);
           if (item) {
@@ -544,6 +547,7 @@ export function createNewsEventsEngine(config: NewsEventsConfig = DEFAULT_CONFIG
     scheduledReleases = [];
     lastNewsMinute = -999;
     lastTickMinute = -1;
+    startTime = Date.now(); // Reset grace period
     // Schedule the first release
     scheduleNextRelease(startMinute);
   }

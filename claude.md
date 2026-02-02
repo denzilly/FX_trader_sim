@@ -100,16 +100,25 @@ npm run build    # Production build
 npm run preview  # Preview production build
 ```
 
-## Voice RFQ Commands
+## Voice RFQ System
 When an RFQ is active in chat:
 - Full price: `1.0850` - Quote at that price
 - Pips only: `50` or `5` - Quote using current big figure + pips
 - Call off: `care`, `ref`, `eee`, `off` - Decline to quote
 
+**Timing behavior**: Client patience timer starts when RFQ arrives (not when quote is submitted). Player can submit/update quotes during this window. When timer expires, the quote is evaluated.
+
 ## E-Pricing Configuration
 - **Base Spread**: The 1M spread that applies to ALL volume tiers (controlled by -/+ buttons)
 - **Tier Additional**: Extra spread for larger sizes (5M, 10M, 50M) on top of base
 - **Skew**: Shift all prices left (favor selling) or right (favor buying)
+
+## Default Spread Configuration
+Base spreads (before session multipliers):
+- **1M**: 0.5-2 pips (mean 1 pip), minimum 0.5 pips
+- **5M**: +0.5 pips additional, minimum 1.0 pips
+- **10M**: +1.0 pips additional, minimum 1.5 pips
+- **50M**: +2.0 pips additional, minimum 2.5 pips
 
 ## Market Impact System
 Trading activity moves the market:
@@ -129,6 +138,7 @@ Session is displayed in the header with flag emoji indicators.
 
 ## News & Events System
 - Random news events during market hours (7am-5pm game time)
+- 60-second grace period at game start (no random news in first minute)
 - Scheduled economic releases with actual vs expected values
 - News can cause immediate price jumps and sustained drift
 - Volatility boosts affect spreads temporarily
@@ -156,7 +166,14 @@ Full gameplay implemented:
 - Sound effects for news, RFQs, and trades
 - Game restart with current settings
 
-## Sample Clients
-- **MacroHard Corp** - Medium competitiveness, 5-25M, buys and sells
-- **Bill's Bakery** - High competitiveness, 1-5M, always buys EUR
-- **ABC Capital** - Low competitiveness (price sensitive), 10-50M, buys and sells
+## Sample Clients (10 total)
+- **MacroHard Corp** - Medium competitiveness (0.7), 5-25M, buys and sells
+- **Bill's Bakery** - High competitiveness (0.9), 1-5M, always buys EUR
+- **ABC Capital** - Low competitiveness (0.4), 10-50M, buys and sells, very frequent
+- **EuroTech AG** - High competitiveness (0.8), 2-10M, always sells EUR (exporter)
+- **Pacific Trading Co** - Medium competitiveness (0.5), 15-40M, buys and sells, patient
+- **Momentum Fund LP** - Low competitiveness (0.3), 20-50M, buys and sells, very frequent
+- **Casa del Vino** - Very high competitiveness (0.95), 1-3M, always buys EUR, infrequent
+- **Nordic Pension Fund** - Medium competitiveness (0.6), 25-50M, buys and sells, patient
+- **Rapid Arb Systems** - Very low competitiveness (0.2), 5-15M, buys and sells, most frequent
+- **Schmidt Motors GmbH** - High competitiveness (0.75), 3-12M, always sells EUR (exporter)
